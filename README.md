@@ -14,10 +14,10 @@
 ---
 
 ## Team information
-- Team name: 
-- Team members:
+- Team name: Group 7
+- Team members: Hamza Irshad, Mobeen Qasim, Gianna Casselli, Richard Milovanov, Mehak Sandhu, Abhay Brar, Akshay Rambarran
 
 ## Project management setup
 - With your assigned group, set-up a Team Project website on Trello(trello.com) to manage your project.
-- Add a link to your Trello board here.
+- Trello link: https://trello.com/invite/68d18917fece63114145de3b/ATTI5b6d6e35fb1390fc4f46a6859895ab41F8981B17
 - Share your board with the 3750 email (cis3750@socs.uoguelph.ca).
