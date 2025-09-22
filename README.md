@@ -15,7 +15,7 @@
 
 ## Team information
 - Team name: Group 7
-- Team members: Hamza Irshad, Mobeen Qasim, Gianna Casselli, Richard Milovanov, Mehak Sandhu, Abhay Brar, Akshay Rambarran, Adil Baig (adilbaig1217)
+- Team members: Hamza Irshad, Mobeen Qasim(QasMob), Gianna Casselli, Richard Milovanov, Mehak Sandhu, Abhay Brar, Akshay Rambarran, Adil Baig (adilbaig1217)
 
 ## Project management setup
 - With your assigned group, set-up a Team Project website on Trello(trello.com) to manage your project.
