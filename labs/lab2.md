@@ -1,5 +1,3 @@
-# Update this file with instructions from Lab 2
-
 # Group 7 - Lab 2
 
 ## User Stories
