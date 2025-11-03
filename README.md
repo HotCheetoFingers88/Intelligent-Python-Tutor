@@ -2,6 +2,21 @@
 
 An adaptive learning platform for programming education built with Next.js, featuring personalized feedback, knowledge tracing, and intelligent recommendations.
 
+## Team Information
+- **Team name:** Group 7
+- **Team members:** Hamza Irshad, Mobeen Qasim (QasMob), Gianna Casselli, Richard Milovanov, Mehak Sandhu, Abhay Brar, Akshay Rambarran, Adil Baig (adilbaig1217)
+
+## Repository Conventions
+- Update this README as the project evolves so onboarding teammates understand the current state.
+- Place lab work in `labs/`.
+- Document meetings in `docs/meeting_notes.md`.
+- Capture requirements and design artifacts in `design.md`.
+- Keep application code in `src/`, tests in `tests/`, and align Python dependencies in `requirements.txt`.
+
+## Project Management Setup
+- Primary planning board: Trello — https://trello.com/invite/68d18917fece63114145de3b/ATTI5b6d6e35fb1390fc4f46a6859895ab41F8981B17
+- Share access with the course account `cis3750@socs.uoguelph.ca`.
+
 ## Project Overview
 
 **ascend.py** follows a two-stage development approach:

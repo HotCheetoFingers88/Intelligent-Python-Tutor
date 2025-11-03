@@ -24,12 +24,11 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
-next-env.d.tsnode_modules/
-.next/
+next-env.d.ts
+
+# local env & logs
 .env.local
 *.log
-node_modules/
-.next/
+
+# python virtualenv
 ml-service/venv/
-.env*
-*.log
