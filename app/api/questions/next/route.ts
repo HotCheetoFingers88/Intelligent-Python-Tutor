@@ -8,6 +8,7 @@ interface SkillScore {
   accuracy: number
   combined: number
   consecutiveIncorrect: number
+  consecutiveCorrect: number
 }
 
 function normalizeBoolean(value: any): boolean {
@@ -57,10 +58,10 @@ export async function GET(request: NextRequest) {
 
     const baselineMastery: Record<string, number> = {
       skill_variables: 0.92,
-      skill_conditionals: 0.25,
-      skill_loops: 0.4,
-      skill_functions: 0.55,
-      skill_lists: 0.95,
+      skill_conditionals: 0.3,
+      skill_loops: 0.55,
+      skill_functions: 0.8,
+      skill_lists: 0.7,
     }
 
     const masteryMap = new Map(masteryData.map((m: any) => [m.skillId, Number(m.pKnown)]))
@@ -75,13 +76,17 @@ export async function GET(request: NextRequest) {
       ]),
     )
 
-    const streakMap = new Map<string, number>()
+    const incorrectStreakMap = new Map<string, number>()
+    const correctStreakMap = new Map<string, number>()
     for (const attempt of recentAttempts as Array<{ skillId: string; correct: boolean }>) {
-      const current = streakMap.get(attempt.skillId) ?? 0
+      const incorrectCurrent = incorrectStreakMap.get(attempt.skillId) ?? 0
+      const correctCurrent = correctStreakMap.get(attempt.skillId) ?? 0
       if (attempt.correct) {
-        streakMap.set(attempt.skillId, 0)
+        incorrectStreakMap.set(attempt.skillId, 0)
+        correctStreakMap.set(attempt.skillId, correctCurrent + 1)
       } else {
-        streakMap.set(attempt.skillId, current + 1)
+        incorrectStreakMap.set(attempt.skillId, incorrectCurrent + 1)
+        correctStreakMap.set(attempt.skillId, 0)
       }
     }
 
@@ -116,13 +121,15 @@ export async function GET(request: NextRequest) {
       const accuracyObj = accuracyMap.get(skill.id)
       const accuracy = accuracyObj?.accuracy ?? 0
       const combined = mastery * 0.7 + accuracy * 0.3
-      const consecutiveIncorrect = streakMap.get(skill.id) ?? 0
+      const consecutiveIncorrect = incorrectStreakMap.get(skill.id) ?? 0
+      const consecutiveCorrect = correctStreakMap.get(skill.id) ?? 0
       return {
         skillId: skill.id,
         mastery,
         accuracy,
         combined,
         consecutiveIncorrect,
+        consecutiveCorrect,
       }
     })
 
@@ -179,6 +186,24 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch questions for the selected skill with attempt context for prioritisation
+    const selectedSkillScore = skillScores.find((s) => s.skillId === targetSkillId)
+    let targetDifficulty = 2
+    if (selectedSkillScore) {
+      if (selectedSkillScore.mastery < 0.45) {
+        targetDifficulty = 1
+      } else if (selectedSkillScore.mastery >= 0.75) {
+        targetDifficulty = 3
+      } else {
+        targetDifficulty = 2
+      }
+
+      if (selectedSkillScore.consecutiveIncorrect >= 2) {
+        targetDifficulty = Math.max(1, targetDifficulty - 1)
+      } else if (selectedSkillScore.consecutiveCorrect >= 3) {
+        targetDifficulty = Math.min(3, targetDifficulty + 1)
+      }
+    }
+
     const questions = await sql`
       SELECT 
         q.*,
@@ -206,6 +231,12 @@ export async function GET(request: NextRequest) {
     }
 
     const ranked = (questions as any[]).sort((a, b) => {
+      const aDelta = Math.abs(Number(a.difficulty ?? 2) - targetDifficulty)
+      const bDelta = Math.abs(Number(b.difficulty ?? 2) - targetDifficulty)
+      if (aDelta !== bDelta) {
+        return aDelta - bDelta
+      }
+
       const aResolved = normalizeBoolean(a.hasCorrect)
       const bResolved = normalizeBoolean(b.hasCorrect)
 
@@ -252,7 +283,7 @@ export async function GET(request: NextRequest) {
         selectionReason,
         mastery: masteryMap.get(questionData.skillId) ?? baselineMastery[questionData.skillId] ?? 0,
         pKnown: masteryMap.get(questionData.skillId) ?? baselineMastery[questionData.skillId] ?? 0,
-        consecutiveIncorrect: streakMap.get(questionData.skillId) ?? 0,
+        consecutiveIncorrect: incorrectStreakMap.get(questionData.skillId) ?? 0,
         totalAttempts: Number(accuracyMap.get(questionData.skillId)?.total ?? 0),
         difficulty: questionData.difficulty,
       },

@@ -59,8 +59,8 @@ ON CONFLICT ("id") DO NOTHING;
 -- Baseline mastery to drive adaptive behaviour in demos
 INSERT INTO "Mastery" ("id", "userId", "skillId", "pKnown", "updatedAt") VALUES
   ('seed_mastery_variables', 'user_student_1', 'skill_variables', 0.92, NOW()),
-  ('seed_mastery_conditionals', 'user_student_1', 'skill_conditionals', 0.25, NOW()),
-  ('seed_mastery_loops', 'user_student_1', 'skill_loops', 0.4, NOW()),
-  ('seed_mastery_functions', 'user_student_1', 'skill_functions', 0.55, NOW()),
-  ('seed_mastery_lists', 'user_student_1', 'skill_lists', 0.95, NOW())
+  ('seed_mastery_conditionals', 'user_student_1', 'skill_conditionals', 0.30, NOW()),
+  ('seed_mastery_loops', 'user_student_1', 'skill_loops', 0.55, NOW()),
+  ('seed_mastery_functions', 'user_student_1', 'skill_functions', 0.80, NOW()),
+  ('seed_mastery_lists', 'user_student_1', 'skill_lists', 0.70, NOW())
 ON CONFLICT ("userId", "skillId") DO UPDATE SET "pKnown" = EXCLUDED."pKnown", "updatedAt" = NOW();

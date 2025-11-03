@@ -162,7 +162,7 @@ function buildPedagogicalFeedback({
       encouragement:
         mastery >= 0.8
           ? "Take on a harder challenge or explore the next concept."
-          : "Keep the momentum going—you're building mastery.",
+          : "Keep the momentum going. You're building mastery.",
       tone: "celebratory",
       nextAction,
       feedbackType,
@@ -305,8 +305,8 @@ export async function POST(request: NextRequest) {
 
     if (correct) {
       const smallGain = 0.04
-      const mediumGain = 0.06
-      const standardGain = 0.2
+      const mediumGain = 0.07
+      const standardGain = 0.1
 
       let delta = standardGain
       if (previousConsecutiveIncorrect >= 2) {
@@ -316,6 +316,19 @@ export async function POST(request: NextRequest) {
       }
 
       pKnown = baselineMastery + delta
+    } else if (previousMastery !== null) {
+      const highDrop = 0.08
+      const midDrop = 0.1
+      const lowDrop = 0.12
+
+      let delta = lowDrop
+      if (previousMastery >= 0.75) {
+        delta = highDrop
+      } else if (previousMastery >= 0.55) {
+        delta = midDrop
+      }
+
+      pKnown = baselineMastery - delta
     }
 
     pKnown = Math.round(Math.min(Math.max(pKnown, 0.05), 0.98) * 100) / 100

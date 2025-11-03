@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -110,7 +110,7 @@ export function DashboardView() {
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold text-accent flex items-center gap-3">
             <Target className="h-7 w-7" />
-            Skills Mastery
+            Skills Mastery & Practice
           </h2>
         </div>
 
@@ -153,6 +153,18 @@ export function DashboardView() {
                   <CardContent>
                     <Progress value={percentage} className="h-3 bg-primary/30" />
                   </CardContent>
+                  <CardFooter className="flex justify-end">
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="gap-2 border-white/20 hover:border-accent/40"
+                    >
+                      <Link href={`/student/practice?skillId=${m.skill.id}`}>
+                        Practice skill
+                        <ArrowRight className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </CardFooter>
                 </Card>
               )
             })}
@@ -179,20 +191,31 @@ export function DashboardView() {
           <div className="space-y-4">
             {recommendations.map((rec) => (
               <Card key={rec.id} className="glass-strong border-white/10 hover:border-accent/30 transition-all">
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 space-y-3">
-                      <CardTitle className="text-xl text-accent">Focus on {rec.skill.name}</CardTitle>
-                      <CardDescription className="text-sm leading-relaxed text-muted-foreground">
+                <CardHeader className="px-6 py-8 md:px-10 md:py-10">
+                  <div className="flex flex-col gap-6">
+                    <div className="flex flex-col space-y-4">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground mb-2">
+                          Next best step
+                        </p>
+                        <CardTitle className="text-2xl md:text-3xl text-accent">Focus on {rec.skill.name}</CardTitle>
+                      </div>
+                      <CardDescription className="text-base leading-relaxed text-muted-foreground md:text-lg">
                         {rec.rationale}
                       </CardDescription>
                     </div>
-                    <Button asChild size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90">
-                      <Link href="/student/practice">
-                        Practice
-                        <ArrowRight className="h-4 w-4 ml-1" />
-                      </Link>
-                    </Button>
+                    <div className="flex justify-center pt-2">
+                      <Button
+                        asChild
+                        size="lg"
+                        className="w-full max-w-[260px] rounded-full px-8 py-4 text-lg bg-accent text-accent-foreground shadow-lg shadow-accent/25 hover:bg-accent/90"
+                      >
+                        <Link href={`/student/practice?skillId=${rec.skill.id}`}>
+                          Practice
+                          <ArrowRight className="h-5 w-5 ml-2" />
+                        </Link>
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
               </Card>

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
+import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -65,9 +66,12 @@ export function PracticeInterface() {
   const [feedback, setFeedback] = useState<FeedbackState | null>(null)
   const [attempts, setAttempts] = useState(0)
   const [startTime, setStartTime] = useState<number>(0)
+  const [lockedSkillId, setLockedSkillId] = useState<string | null>(null)
   const { toast } = useToast()
   const firstLoadRef = useRef(true)
   const persistentHintRef = useRef<string | null>(null)
+  const searchParams = useSearchParams()
+  const skillFromQuery = useMemo(() => searchParams.get("skillId"), [searchParams])
 
   // Hardcoded demo user
   const userId = "user_student_1"
@@ -113,7 +117,7 @@ export function PracticeInterface() {
 
         const starter = data.question.starter ? decodeStarter(data.question.starter) : ""
         setStarterCode(starter)
-        setAnswer(starter)
+        setAnswer("")
         setAttempts(0)
         setStartTime(Date.now())
       } catch (error) {
@@ -132,9 +136,23 @@ export function PracticeInterface() {
   useEffect(() => {
     if (firstLoadRef.current) {
       firstLoadRef.current = false
-      fetchNextQuestion({ focusSkillId: "skill_conditionals" })
+      if (skillFromQuery) {
+        setLockedSkillId(skillFromQuery)
+        fetchNextQuestion({ focusSkillId: skillFromQuery })
+      } else {
+        fetchNextQuestion({ focusSkillId: "skill_conditionals" })
+      }
+      return
     }
-  }, [fetchNextQuestion])
+
+    if (skillFromQuery && skillFromQuery !== lockedSkillId) {
+      setLockedSkillId(skillFromQuery)
+      fetchNextQuestion({ focusSkillId: skillFromQuery })
+    } else if (!skillFromQuery && lockedSkillId) {
+      setLockedSkillId(null)
+      fetchNextQuestion()
+    }
+  }, [fetchNextQuestion, skillFromQuery, lockedSkillId])
 
   const handleSubmit = async () => {
     if (!question || !answer.trim()) return
@@ -225,9 +243,7 @@ export function PracticeInterface() {
   }
 
   const handleNext = () => {
-    const focusSkillId =
-      feedback?.nextAction === "focus_skill" && question ? question.skillId : undefined
-    fetchNextQuestion({ focusSkillId })
+    fetchNextQuestion({ focusSkillId: lockedSkillId ?? undefined })
   }
 
   const masteryPercent = useMemo(() => {
@@ -241,8 +257,7 @@ export function PracticeInterface() {
       "The tutor selected this skill to support your progress."
     return `Mastery for ${question.skill.name} is ${masteryPercent}%. ${narrative}`
   }, [meta, question, masteryPercent, feedback?.correct])
-  const canAdvance = feedback?.nextAction === "advance" || feedback?.correct
-  const needsFocusedRetry = feedback?.nextAction === "focus_skill"
+  const canAdvance = Boolean(feedback?.correct)
   const showHint = Boolean(feedback?.hint && !feedback?.correct)
   const showWorkedExample = Boolean(
     !feedback?.correct &&
@@ -250,6 +265,35 @@ export function PracticeInterface() {
       feedback?.feedbackType === "worked_example",
   )
   const workedExampleText = feedback?.workedExample ? decodeStarter(feedback.workedExample) : ""
+  const difficultyMeta = useMemo(() => {
+    if (!question) {
+      return {
+        label: "",
+        badgeClass: "",
+        textClass: "",
+      }
+    }
+    switch (question.difficulty) {
+      case 1:
+        return {
+          label: "Easy",
+          badgeClass: "bg-emerald-400/15 text-emerald-200 border border-emerald-300/30",
+          textClass: "text-emerald-300",
+        }
+      case 3:
+        return {
+          label: "Hard",
+          badgeClass: "bg-rose-400/15 text-rose-200 border border-rose-300/30",
+          textClass: "text-rose-300",
+        }
+      default:
+        return {
+          label: "Medium",
+          badgeClass: "bg-amber-400/15 text-amber-200 border border-amber-300/30",
+          textClass: "text-amber-300",
+        }
+    }
+  }, [question])
 
   const handleCopyWorkedExample = useCallback(
     async (code: string) => {
@@ -323,20 +367,29 @@ export function PracticeInterface() {
             </div>
             {meta && (
               <div className="min-w-[260px] rounded-lg border border-border/60 bg-muted/20 p-4 text-sm leading-relaxed">
-                <div className="space-y-3">
+                <div className="space-y-4">
+                  {difficultyMeta.label && (
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="flex items-center gap-2 text-muted-foreground text-sm">
+                        <BookOpen className="h-4 w-4 text-accent" />
+                        Difficulty
+                      </span>
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-2 rounded-full px-4 py-1 text-sm font-semibold whitespace-nowrap leading-none",
+                          difficultyMeta.badgeClass,
+                        )}
+                      >
+                        {difficultyMeta.label}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-2 text-muted-foreground">
                       <Brain className="h-4 w-4 text-accent" />
                       Skill mastery
                     </span>
                     <span className="font-semibold text-accent">{masteryPercent}%</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-2 text-muted-foreground">
-                      <BookOpen className="h-4 w-4 text-accent" />
-                      Skill focus
-                    </span>
-                    <span className="text-lg font-semibold text-primary">{question.skill.name}</span>
                   </div>
                   {reasonMessage && (
                     <div className="text-xs text-muted-foreground space-y-1">
@@ -403,10 +456,10 @@ export function PracticeInterface() {
             </Button>
 
             <Button
-              variant={needsFocusedRetry ? "secondary" : "outline"}
+              variant="outline"
               onClick={handleNext}
               className="flex-1 gap-2"
-              disabled={loading || (!canAdvance && !needsFocusedRetry)}
+              disabled={loading || submitting || !canAdvance}
             >
               Next question
               <ArrowRight className="h-4 w-4" />
