@@ -1,0 +1,130 @@
+[
+  {
+    "id": "q_var_1",
+    "skill_id": "skill_variables",
+    "prompt": "Create a variable named age and assign it the value 25.",
+    "starter": "age = ",
+    "answer": "age = 25",
+    "difficulty": 1
+  },
+  {
+    "id": "q_var_2",
+    "skill_id": "skill_variables",
+    "prompt": "Store your first name inside a variable called student_name.",
+    "starter": "student_name = ",
+    "answer": "student_name = \"Ada\"",
+    "difficulty": 1
+  },
+  {
+    "id": "q_var_3",
+    "skill_id": "skill_variables",
+    "prompt": "Swap the values of variables x and y using a temporary variable.",
+    "starter": "x = 5\ny = 10\n",
+    "answer": "temp = x\nx = y\ny = temp",
+    "difficulty": 2
+  },
+  {
+    "id": "q_cond_1",
+    "skill_id": "skill_conditionals",
+    "prompt": "Write an if statement that prints \"Adult\" when age is at least 18.",
+    "starter": "age = 20\n",
+    "answer": "if age >= 18:\n    print(\"Adult\")",
+    "difficulty": 1
+  },
+  {
+    "id": "q_cond_2",
+    "skill_id": "skill_conditionals",
+    "prompt": "Use an if/else block to print whether num is positive or negative.",
+    "starter": "num = -5\n",
+    "answer": "if num >= 0:\n    print(\"Positive\")\nelse:\n    print(\"Negative\")",
+    "difficulty": 2
+  },
+  {
+    "id": "q_cond_3",
+    "skill_id": "skill_conditionals",
+    "prompt": "Grade a score using nested conditionals (A: 90+, B: 80+, C: 70+, otherwise F).",
+    "starter": "score = 85\n",
+    "answer": "if score >= 90:\n    print(\"A\")\nelif score >= 80:\n    print(\"B\")\nelif score >= 70:\n    print(\"C\")\nelse:\n    print(\"F\")",
+    "difficulty": 3
+  },
+  {
+    "id": "q_loop_1",
+    "skill_id": "skill_loops",
+    "prompt": "Write a for loop that prints the numbers 1 through 5 each on a new line.",
+    "starter": "for i in ",
+    "answer": "for i in range(1, 6):\n    print(i)",
+    "difficulty": 1
+  },
+  {
+    "id": "q_loop_2",
+    "skill_id": "skill_loops",
+    "prompt": "Complete the while loop so it counts down from 5 to 1.",
+    "starter": "count = 5\nwhile ",
+    "answer": "count = 5\nwhile count > 0:\n    print(count)\n    count -= 1",
+    "difficulty": 2
+  },
+  {
+    "id": "q_loop_3",
+    "skill_id": "skill_loops",
+    "prompt": "Use a loop to compute the total of all numbers in the list.",
+    "starter": "numbers = [1, 2, 3, 4, 5]\ntotal = 0\n",
+    "answer": "numbers = [1, 2, 3, 4, 5]\ntotal = 0\nfor num in numbers:\n    total += num\nprint(total)",
+    "difficulty": 2
+  },
+  {
+    "id": "q_loop_4",
+    "skill_id": "skill_loops",
+    "prompt": "Build a string called row that contains the 7 times table from 7 to 70 separated by spaces.",
+    "starter": "row = \"\"\nfor n in range(1, 11):\n    ",
+    "answer": "row = \"\"\nfor n in range(1, 11):\n    row += f\"{7 * n} \"\nprint(row.strip())",
+    "difficulty": 3
+  },
+  {
+    "id": "q_func_1",
+    "skill_id": "skill_functions",
+    "prompt": "Define a function named square that returns the square of a number.",
+    "starter": "def square(n):\n    ",
+    "answer": "def square(n):\n    return n * n",
+    "difficulty": 2
+  },
+  {
+    "id": "q_func_2",
+    "skill_id": "skill_functions",
+    "prompt": "Create a function add that returns the sum of two numbers a and b.",
+    "starter": "def add(a, b):\n    ",
+    "answer": "def add(a, b):\n    return a + b",
+    "difficulty": 2
+  },
+  {
+    "id": "q_func_3",
+    "skill_id": "skill_functions",
+    "prompt": "Write a recursive function factorial that multiplies numbers down to 1.",
+    "starter": "def factorial(n):\n    ",
+    "answer": "def factorial(n):\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)",
+    "difficulty": 3
+  },
+  {
+    "id": "q_list_1",
+    "skill_id": "skill_lists",
+    "prompt": "Create a list named fruits that contains three strings.",
+    "starter": "fruits = ",
+    "answer": "fruits = [\"apple\", \"banana\", \"orange\"]",
+    "difficulty": 1
+  },
+  {
+    "id": "q_list_2",
+    "skill_id": "skill_lists",
+    "prompt": "Store the second element of items inside the variable second.",
+    "starter": "items = [10, 20, 30]\n",
+    "answer": "items = [10, 20, 30]\nsecond = items[1]",
+    "difficulty": 1
+  },
+  {
+    "id": "q_list_3",
+    "skill_id": "skill_lists",
+    "prompt": "Append \"green\" to the colors list and print the updated list.",
+    "starter": "colors = [\"red\", \"blue\"]\n",
+    "answer": "colors = [\"red\", \"blue\"]\ncolors.append(\"green\")\nprint(colors)",
+    "difficulty": 2
+  }
+]

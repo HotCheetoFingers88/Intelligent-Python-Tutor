@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  role      Role      @default(STUDENT)
+  attempts  Attempt[]
+  mastery   Mastery[]
+  recommendations Recommendation[]
+  createdAt DateTime  @default(now())
+}
+
+enum Role {
+  STUDENT
+  INSTRUCTOR
+}
+
+model Skill {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  order     Int
+  questions Question[]
+  mastery   Mastery[]
+  recommendations Recommendation[]
+  createdAt DateTime   @default(now())
+}
+
+model Question {
+  id         String    @id @default(cuid())
+  prompt     String
+  starter    String?
+  answer     String?
+  difficulty Int
+  skillId    String
+  skill      Skill     @relation(fields: [skillId], references: [id])
+  attempts   Attempt[]
+  createdAt  DateTime  @default(now())
+}
+
+model Attempt {
+  id         String   @id @default(cuid())
+  userId     String
+  questionId String
+  correct    Boolean
+  elapsedMs  Int
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
+  question   Question @relation(fields: [questionId], references: [id])
+}
+
+model Mastery {
+  id        String   @id @default(cuid())
+  userId    String
+  skillId   String
+  pKnown    Float
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+  skill     Skill    @relation(fields: [skillId], references: [id])
+
+  @@unique([userId, skillId], name: "userId_skillId")
+}
+
+model Recommendation {
+  id        String   @id @default(cuid())
+  userId    String
+  skillId   String
+  rationale String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  skill     Skill    @relation(fields: [skillId], references: [id])
+}

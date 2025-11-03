@@ -1,0 +1,27 @@
+[
+  {
+    "id": "skill_variables",
+    "name": "Variables",
+    "order": 1
+  },
+  {
+    "id": "skill_conditionals",
+    "name": "Conditionals",
+    "order": 2
+  },
+  {
+    "id": "skill_loops",
+    "name": "Loops",
+    "order": 3
+  },
+  {
+    "id": "skill_functions",
+    "name": "Functions",
+    "order": 4
+  },
+  {
+    "id": "skill_lists",
+    "name": "Lists",
+    "order": 5
+  }
+]
