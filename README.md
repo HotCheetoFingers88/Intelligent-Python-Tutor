@@ -301,23 +301,6 @@ Set environment variable:
 - `USE_ML=true` → calls ML API
 - `USE_ML=false` → uses rules-based logic
 
-## Development Roadmap
-
-- [x] Stage 1: Rules-based ITS foundation
-      - [x] JSON domain model
-      - [x] CLI prototype
-      - [x] Student model tracking
-      - [x] Basic tutoring logic
-- [x] Stage 2: ML upgrade
-      - [x] FastAPI microservice
-      - [x] Knowledge tracing (pyBKT)
-      - [x] Feedback personalization (scikit-learn)
-      - [x] Recommendations (scikit-learn KNN)
-- [ ] Future enhancements
-      - [ ] Real-time code execution
-      - [ ] Peer collaboration features
-      - [ ] Advanced analytics dashboard
-
 ## Demo Guide
 
 Use this checklist to run the three flagship demos that prove ascend.py’s adaptive intelligence.
@@ -384,7 +367,7 @@ SQL
 
 ### Case 2 – Feedback Personalization
 
-**Purpose:** Demonstrate escalating support—hint, worked example, then praise—driven by a real ML classifier.
+**Purpose:** Demonstrate escalating support - hint, worked example, then praise - driven by a real ML classifier.
 
 - **Walkthrough**
     1. Stay on the current skill. Submit an incorrect answer.

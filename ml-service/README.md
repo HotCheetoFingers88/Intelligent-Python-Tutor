@@ -138,14 +138,12 @@ curl -X POST http://localhost:8000/recommend \
   -d '{"user_id":"demo","mastery_data":[{"skill_id":"skill_loops","p_known":0.3},{"skill_id":"skill_functions","p_known":0.6}]}'
 ```
 
-Each call should return JSON with mastery updates, feedback messaging, or the next skill suggestion—exactly what the Next.js app consumes.
+Each call should return JSON with mastery updates, feedback messaging, or the next skill suggestion - exactly what the Next.js app consumes.
 
 ---
 
 ## 5. Production Notes
 
 - Deploy the service to Render, Railway, or another Python-friendly host.
-- Set `ML_API_URL` in your Vercel project to point at the deployed FastAPI app.
+- Set `ML_API_URL` in the Vercel project to point at the deployed FastAPI app.
 - Keep the endpoint contract stable; the Next.js layer expects the JSON structures above.
-
-With this README, you can boot the ML service, understand each endpoint, and walk stakeholders through the three intelligent demo cases without falling back to rule-based behaviour. Happy demoing! 🎉
