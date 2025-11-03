@@ -365,7 +365,7 @@ export function PracticeInterface() {
                   disabled={submitting || answer === starterCode}
                 >
                   <RotateCcw className="h-4 w-4" />
-                  Reset starter
+                  Reset
                 </Button>
               </div>
             </div>

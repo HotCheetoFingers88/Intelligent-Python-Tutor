@@ -252,7 +252,6 @@ export async function POST(request: NextRequest) {
       ORDER BY a."createdAt" ASC
       LIMIT 50
     `
-
     const correct = compareCode(answer, question.answer)
 
     const attemptId = `attempt_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
@@ -271,6 +270,7 @@ export async function POST(request: NextRequest) {
       },
     ]
 
+    const previousConsecutiveIncorrect = getConsecutiveIncorrect(previousAttempts as AttemptEntry[])
     const consecutiveIncorrect = getConsecutiveIncorrect(historyAfterAttempt)
     const attemptCountForSkill = historyAfterAttempt.length
     const recentPerformance = historyAfterAttempt.slice(-5).map((entry) => entry.correct)
@@ -296,39 +296,26 @@ export async function POST(request: NextRequest) {
     })
 
     const ktResult = await ktResponse.json()
-    let pKnown = typeof ktResult.pKnown === "number" ? ktResult.pKnown : undefined
+    const fallbackBaseline = previousMastery ?? 0.35
+    const mlBaseline =
+      typeof ktResult.pKnown === "number" && !Number.isNaN(ktResult.pKnown) ? Number(ktResult.pKnown) : fallbackBaseline
+    const baselineMastery = previousMastery ?? mlBaseline
 
-    if (pKnown === undefined) {
-      // Fallback knowledge tracing if service unavailable
-      const incorrectRatio =
-        historyAfterAttempt.length > 0
-          ? historyAfterAttempt.filter((entry) => !entry.correct).length / historyAfterAttempt.length
-          : 0.5
-      pKnown = correct ? Math.max(0.35, 1 - incorrectRatio * 0.6) : Math.max(0.1, 1 - incorrectRatio * 0.8)
+    let pKnown = baselineMastery
 
-      if (correct && consecutiveIncorrect >= 2) {
-        pKnown = Math.max(pKnown, 0.85)
-      } else if (!correct && consecutiveIncorrect >= 2) {
-        pKnown = Math.min(pKnown, 0.4)
+    if (correct) {
+      const smallGain = 0.04
+      const mediumGain = 0.06
+      const standardGain = 0.2
+
+      let delta = standardGain
+      if (previousConsecutiveIncorrect >= 2) {
+        delta = smallGain
+      } else if (previousConsecutiveIncorrect === 1) {
+        delta = mediumGain
       }
-    }
 
-    if (pKnown === undefined || Number.isNaN(pKnown)) {
-      pKnown = previousMastery ?? 0.35
-    }
-
-    if (previousMastery !== null && !Number.isNaN(previousMastery)) {
-      const prev = previousMastery
-      if (correct) {
-        const maxRise = prev < 0.4 ? 0.12 : prev < 0.6 ? 0.1 : 0.07
-        pKnown = Math.min(Math.max(prev, pKnown), prev + maxRise)
-      } else {
-        const maxDrop = prev < 0.4 ? 0.18 : 0.14
-        const lowerBound = prev - maxDrop
-        const upperBound = prev - 0.02
-        const desired = Math.min(prev, pKnown)
-        pKnown = Math.max(lowerBound, Math.min(desired, upperBound))
-      }
+      pKnown = baselineMastery + delta
     }
 
     pKnown = Math.round(Math.min(Math.max(pKnown, 0.05), 0.98) * 100) / 100
