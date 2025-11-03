@@ -367,7 +367,7 @@ SQL
 
 ### Case 2 – Feedback Personalization
 
-**Purpose:** Demonstrate escalating support—hint, worked example, then praise—driven by a real ML classifier.
+**Purpose:** Demonstrate escalating support - hint, worked example, then praise - driven by a real ML classifier.
 
 - **Walkthrough**
     1. Stay on the current skill. Submit an incorrect answer.
