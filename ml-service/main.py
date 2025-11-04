@@ -30,9 +30,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ============================================================================
-# 1️⃣ KNOWLEDGE TRACING ENDPOINT - Using pyBKT
-# ============================================================================
+# KNOWLEDGE TRACING ENDPOINT - Using pyBKT
 
 class AttemptData(BaseModel):
     skill_id: str
@@ -167,9 +165,7 @@ def heuristic_mastery(attempts: List[AttemptData]) -> float:
             mastery_results = [MasteryResult(skill_id="unknown", p_known=0.3)]
         return KTResponse(mastery=mastery_results)
 
-# ============================================================================
-# 2️⃣ FEEDBACK PERSONALIZATION ENDPOINT - Using scikit-learn
-# ============================================================================
+# FEEDBACK PERSONALIZATION ENDPOINT - Using scikit-learn
 
 class FeedbackRequest(BaseModel):
     user_id: str
@@ -244,9 +240,7 @@ async def feedback_personalization(request: FeedbackRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Feedback personalization error: {str(e)}")
 
-# ============================================================================
-# 3️⃣ RECOMMENDATION ENDPOINT - Using scikit-learn
-# ============================================================================
+# RECOMMENDATION ENDPOINT - Using scikit-learn
 
 class RecommendRequest(BaseModel):
     user_id: str
@@ -317,9 +311,7 @@ async def recommend_skill(request: RecommendRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Recommendation error: {str(e)}")
 
-# ============================================================================
 # HEALTH CHECK
-# ============================================================================
 
 @app.get("/")
 async def root():

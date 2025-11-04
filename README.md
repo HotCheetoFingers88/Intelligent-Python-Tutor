@@ -343,81 +343,68 @@ SQL
 
 -----
 
-### Case 1 – Adaptive Question Selection
+### Case 1 – Adaptive Hints & Reinforcement on Conditionals
 
-**Purpose:** Show the student model holding the learner on their weakest skill until they achieve a clean solve.
+**Purpose:** Show the tutor keeping the learner on the weakest skill, escalating support, and requiring a clean solve before advancing.
 
 - **Walkthrough**
-    1. Open `/student/practice`. The pre-seeded weakest skill is **Loops**.
-    2. Submit an incorrect answer twice. `/api/attempts` sends each attempt to `/ml/kt`, which drops Loops mastery.
-    3. Observe the next question: the selector ( `app/api/questions/next/route.ts` ) keeps issuing Loops items (`selectionReason = repeat_until_mastered`).
-    4. Submit the correct code on the third try. Mastery jumps via `/ml/kt` and the selector advances to the next weakest skill (Functions).
+    1. Open `/student/practice`. Conditionals is seeded as the lowest-mastery skill.
+    2. Submit the first answer incorrectly. `/api/attempts` calls `/ml/feedback-style`, which returns a concise hint.
+    3. Miss again. The classifier escalates to a worked example and `/ml/kt` keeps the learner on Conditionals (`selectionReason = repeat_until_mastered`).
+    4. Solve it; the tutor asks for one more Conditionals question to confirm understanding.
+    5. Solve the follow-up correctly. Mastery rises, streak resets, and the selector finally moves on.
 - **Models & Components**
     | Layer | Implementation |
     |---|---|
     | Student Model | `ml-service/main.py::knowledge_tracing` (pyBKT-style updates) + Prisma `Mastery` |
-    | Domain Model | Prisma `Skill` & `Question` tables (seeded via `003-seed-from-json.sql`) |
+    | Feedback ML | `ml-service/main.py::feedback_personalization` (scikit-learn LogisticRegression) |
     | Pedagogical Logic| `app/api/questions/next/route.ts` (streak-aware, ML-assisted selection) |
 - **Tech Highlights**
-      - FastAPI BKT heuristic backed by `pyBKT`-style math with safe fallbacks.
-      - Next.js route blends mastery, accuracy, consecutive misses, and ML KNN suggestions.
-      - React practice workspace (`components/practice-interface.tsx`) surfaces metadata (mastery %, strategy).
+      - ML-driven hints and worked examples surface automatically based on attempt history.
+      - Knowledge tracing keeps the learner on the shaky skill even after a single correct attempt.
+      - Reinforcement step demonstrates targeted repetition before switching topics.
 
 -----
 
-### Case 2 – Feedback Personalization
+### Case 2 – Personalized Recommendation Loop
 
-**Purpose:** Demonstrate escalating support - hint, worked example, then praise - driven by a real ML classifier.
+**Purpose:** Demonstrate the dashboard recommending the next skill and the system retargeting after a successful session.
 
 - **Walkthrough**
-    1. Stay on the current skill. Submit an incorrect answer.
-          - `/api/attempts` calls `/ml/feedback-style`; LogisticRegression returns `hint`.
-          - UI shows a concise, skill-specific hint card.
-    2. Submit another incorrect answer.
-          - Classifier now predicts `worked_example`; the tutor reveals a full solution block and coaching.
-    3. Submit the correct answer.
-          - Feedback switches to praise; `nextAction` becomes `advance`.
+    1. After Case 1, visit `/student/dashboard`. Loops is now the weakest skill, sourced from `/ml/recommend`.
+    2. Click “Practice skill” on Loops. Solve the prompt correctly.
+    3. Return to the dashboard; Loops mastery climbed, and Conditionals slides back to the lowest slot, generating a new recommendation.
 - **Models & Components**
     | Layer | Implementation |
     |---|---|
-    | Tutoring Model | `ml-service/main.py::feedback_personalization` (scikit-learn LogisticRegression) |
-    | Student Context | Attempt history & timing assembled in `app/api/attempts/route.ts` |
-    | UI Rendering | `components/practice-interface.tsx` feedback cards & code editor |
-- **Tech Highlights**
-      - Synthetic training data encodes last correctness, average response time, consecutive errors.
-      - Next.js fallback logic only runs if the service is unreachable; with the ML API up you see the classifier’s messaging.
-      - Prism-based code editor locks/unlocks based on tutor guidance to match LeetCode-like UX.
-
------
-
-### Case 3 – Mastery Dashboard & Recommendation
-
-**Purpose:** Visualise mastery growth and ML-driven “what’s next” recommendations after a practice session.
-
-- **Walkthrough**
-    1. After running Case 1 & 2 interactions, open `/student/dashboard`.
-    2. Progress bars reflect live mastery (updated by `/ml/kt`).
-    3. Recommendation card shows the weakest skill with rationale from `/ml/recommend`.
-    4. Return to practice, clear the recommended skill with a first-try correct submission.
-    5. Refresh the dashboard; mastery and the recommendation update immediately.
-- **Models & Components**
-    | Layer | Implementation |
-    |---|---|
-    | Student Model | Prisma `Mastery` records + `app/api/mastery/route.ts` |
     | Recommendation ML | `ml-service/main.py::recommend_skill` (scikit-learn `NearestNeighbors`) |
-    | Persistence | `app/api/recommendations/route.ts` stores ML output in Prisma `Recommendation` table |
-    | Frontend | `components/dashboard-view.tsx` (cards, animated progress, CTA) |
+    | Student Model | Prisma `Mastery` + `app/api/mastery/route.ts` |
+    | Frontend | `components/dashboard-view.tsx` (progress cards, CTA) |
 - **Tech Highlights**
-      - Pure scikit-learn KNN using a synthetic mastery matrix.
-      - API writes recommendations to the database so subsequent loads (dashboard or practice) stay consistent.
-      - Dashboard copies selection metadata so you can explain *why* a recommendation appeared.
+      - Cosine-similarity KNN recommends the next skill based on mastery vectors.
+      - Recommendations persist in Prisma so the practice view and dashboard stay aligned.
+      - Dashboard copy explains *why* a recommendation appears for easy narration.
 
 -----
 
-### Demo Day Checklist
+### Case 3 – Targeted Practice & Dynamic Difficulty on Functions
 
-- [ ] Database reseeded (`001-create-tables.sql`, `003-seed-from-json.sql`).
-- [ ] `USE_ML=true` and `ML_API_URL` exported in both ML and Next.js shells.
-- [ ] FastAPI running at `http://localhost:8000`.
-- [ ] `npm run dev` serving `/student/practice` and `/student/dashboard`.
-- [ ] (Optional) Clear learner history between cases with the SQL snippet.
+**Purpose:** Show a learner focusing a strong skill (Functions) and the tutor adapting the question difficulty (hard → medium → hard) based on streaks.
+
+- **Walkthrough**
+    1. From the dashboard, pick “Practice skill” on Functions—even though Lists may be recommended.
+    2. Start with a hard Functions question (mastery ~0.8). Miss it and observe mastery dip.
+    3. `/api/questions/next` lowers difficulty to a medium variant. Solve it correctly; mastery climbs again.
+    4. The next question returns to hard difficulty, proving the tutor scales challenge up and down.
+- **Models & Components**
+    | Layer | Implementation |
+    |---|---|
+    | Difficulty Logic | `app/api/questions/next/route.ts` (mastery bands + correct/incorrect streaks) |
+    | Student Model | `/api/attempts` + `/ml/kt` for mastery adjustments |
+    | UI | `components/practice-interface.tsx` difficulty pill & sidebar summary |
+- **Tech Highlights**
+      - Difficulty tier blends mastery thresholds with consecutive streaks for natural challenge ramps.
+      - Practice UI exposes the difficulty state so the shift is obvious during the demo.
+      - Targeted practice entry points work for any skill via `skillId` query param.
+
+-----

@@ -66,51 +66,47 @@ Each endpoint accepts JSON payloads from the Next.js API layer and returns struc
 
 Follow these scripts after both servers are running.
 
-### Case 1 – Adaptive Question Selection
+### Case 1 – Adaptive Hints & Reinforcement (Conditionals)
 
-**Goal:** Show that the tutor keeps the learner on their weakest skill until they deliver a clean solve.
+**Goal:** Prove that the tutor escalates support (hint → worked example) and keeps the learner on a weak skill until mastery recovers.
 
-1. Navigate to `http://localhost:3000/student/practice`. The seeded weakest skill is **Loops**.
-2. Submit an incorrect answer twice. The Next.js API calls `/api/ml/kt`, which lowers Loops mastery and sets `selectionReason=repeat_until_mastered`.
-3. Observe that the next question is still a Loops question; you’re locked until mastery improves.
-4. Submit the correct solution on the third try. Mastery jumps (via `/kt`), streak resets, and the selector advances to the next lowest mastery skill (Functions).
-
-**Behind the scenes**
-- `ml-service/main.py::knowledge_tracing` updates `p_known`.
-- `app/api/questions/next/route.ts` prioritises streaked skills and only consults the KNN recommendation when no skill is in recovery mode.
-- `components/practice-interface.tsx` displays the current skill, mastery %, and selection rationale.
-
-### Case 2 – Feedback Personalisation
-
-**Goal:** Demonstrate a tutor that escalates support based on recent attempts.
-
-1. Stay on the current skill (Variables works well). Submit a wrong answer.
-   - `/api/attempts` captures timing and streak data, then calls `/ml/feedback-style`.
-   - LogisticRegression predicts `hint`; the practice UI shows a concise, contextual tip.
-2. Submit another wrong answer.
-   - Classifier predicts `worked_example`; the UI shows a full code solution with coaching.
-3. Submit the correct answer.
-   - Feedback switches to praise, `nextAction` becomes `advance`, and the selector is free to move on.
+1. Navigate to `http://localhost:3000/student/practice`. Conditionals is seeded as the lowest mastery skill.
+2. Miss the first attempt. `/api/attempts` calls `/ml/feedback-style`, which returns a targeted hint.
+3. Miss again. The classifier escalates to a worked example while `/api/ml/kt` keeps `selectionReason=repeat_until_mastered`.
+4. Solve the problem; the tutor asks for one more Conditionals question to reinforce the concept.
+5. Solve the follow-up correctly—only then does the selector move on to Loops.
 
 **Behind the scenes**
-- `ml-service/main.py::feedback_personalization` returns `style: "hint"` or `"worked_example"` plus a message.
-- `app/api/attempts/route.ts` stitches in the ML response and decides whether the learner should retry or move on.
-- `components/practice-interface.tsx` renders the feedback cards, hint, and worked example.
+- `ml-service/main.py::knowledge_tracing` updates `p_known` after every submission.
+- `ml-service/main.py::feedback_personalization` (LogisticRegression) picks hint vs. worked example.
+- `app/api/questions/next/route.ts` refuses to change skills until mastery rises above the threshold.
 
-### Case 3 – Mastery Dashboard & Recommendations
+### Case 2 – Personalized Recommendation Loop (Dashboard → Loops)
 
-**Goal:** Visualise mastery changes and ML-guided next steps after practice.
+**Goal:** Demonstrate the ML recommendation circuit and show the dashboard reacting after a successful practice session.
 
-1. Visit `http://localhost:3000/student/dashboard` after running Case 1 & 2.
-2. Mastery bars reflect values stored in Prisma `Mastery` (populated by `/kt`).
-3. A recommendation card appears (e.g., “Review Loops next”) sourced from `/ml/recommend`.
-4. Return to practice, clear the recommended skill with a first-try correct submission.
-5. Refresh the dashboard—mastery updates and the recommendation switches to the next weakest skill.
+1. After Case 1, open `http://localhost:3000/student/dashboard`. Loops is now the weakest skill and appears on the recommendation card (result of `/ml/recommend`).
+2. Click “Practice skill” for Loops. Solve the prompt correctly.
+3. Return to the dashboard: Loops mastery jumps and Conditionals becomes the lowest again, generating a fresh recommendation.
 
 **Behind the scenes**
-- `ml-service/main.py::recommend_skill` fits a scikit-learn `NearestNeighbors` model to synthetic mastery data, finds similar learners, and suggests the lowest mastery skill.
-- `app/api/recommendations/route.ts` writes the recommendation to Prisma so the dashboard and practice view stay in sync.
-- `components/dashboard-view.tsx` renders the progress cards and CTA.
+- `ml-service/main.py::recommend_skill` (NearestNeighbors) compares mastery vectors against a synthetic cohort.
+- `app/api/recommendations/route.ts` stores the recommendation so practice and dashboard stay in sync.
+- `components/dashboard-view.tsx` surfaces the CTA and rationale text for narration.
+
+### Case 3 – Targeted Practice & Dynamic Difficulty (Functions)
+
+**Goal:** Show the learner intentionally drilling a strong skill and the tutor adjusting question difficulty (hard ⇄ medium) as mastery shifts.
+
+1. From the dashboard, choose “Practice skill” for **Functions** (even if Lists is recommended).
+2. Start with a hard Functions prompt (mastery ≈ 0.8). Miss it; `/api/ml/kt` drops mastery.
+3. The next call to `/api/questions/next` picks a medium variant. Solve it correctly—mastery rebounds.
+4. The following question returns to hard difficulty, proving the system adapts challenge level as streaks change.
+
+**Behind the scenes**
+- Difficulty tier combines mastery bands with consecutive correct/incorrect streaks (`app/api/questions/next/route.ts`).
+- `/api/attempts` + `/api/ml/kt` handle mastery updates that drive those tier changes.
+- `components/practice-interface.tsx` displays the difficulty pill so the escalation/retreat is obvious on screen.
 
 ---
 
@@ -141,9 +137,3 @@ curl -X POST http://localhost:8000/recommend \
 Each call should return JSON with mastery updates, feedback messaging, or the next skill suggestion - exactly what the Next.js app consumes.
 
 ---
-
-## 5. Production Notes
-
-- Deploy the service to Render, Railway, or another Python-friendly host.
-- Set `ML_API_URL` in the Vercel project to point at the deployed FastAPI app.
-- Keep the endpoint contract stable; the Next.js layer expects the JSON structures above.
