@@ -1,1 +1,1 @@
-export { POST } from "../attempts/route"
+export { POST } from "../grade/route"

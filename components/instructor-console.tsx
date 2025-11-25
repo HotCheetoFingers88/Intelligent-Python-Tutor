@@ -1,8 +1,8 @@
 "use client"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SkillsManager } from "@/components/skills-manager"
-import { QuestionsManager } from "@/components/questions-manager"
-import { GraduationCap, FileQuestion } from "lucide-react"
+import { ClassesManager } from "@/components/classes-manager"
+import { GraduationCap, Users } from "lucide-react"
 
 export function InstructorConsole() {
   return (
@@ -22,11 +22,11 @@ export function InstructorConsole() {
             Skills
           </TabsTrigger>
           <TabsTrigger
-            value="questions"
+            value="classes"
             className="flex items-center gap-2 data-[state=active]:bg-accent data-[state=active]:text-accent-foreground"
           >
-            <FileQuestion className="h-4 w-4" />
-            Questions
+            <Users className="h-4 w-4" />
+            Classes
           </TabsTrigger>
         </TabsList>
 
@@ -34,8 +34,8 @@ export function InstructorConsole() {
           <SkillsManager />
         </TabsContent>
 
-        <TabsContent value="questions" className="mt-6">
-          <QuestionsManager />
+        <TabsContent value="classes" className="mt-6">
+          <ClassesManager />
         </TabsContent>
       </Tabs>
     </div>

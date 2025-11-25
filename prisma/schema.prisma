@@ -8,18 +8,58 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(cuid())
-  email     String    @unique
-  role      Role      @default(STUDENT)
+  id        String         @id @default(cuid())
+  email     String         @unique
+  username  String         @unique
+  passwordHash String
+  role      Role           @default(student)
   attempts  Attempt[]
   mastery   Mastery[]
   recommendations Recommendation[]
-  createdAt DateTime  @default(now())
+  classes   Class[]        @relation("InstructorClasses")
+  enrollments Enrollment[]
+  createdQuestions Question[] @relation("QuestionCreatedBy")
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
 }
 
 enum Role {
-  STUDENT
-  INSTRUCTOR
+  student
+  instructor
+}
+
+enum ClassRole {
+  student
+  instructor
+}
+
+enum Difficulty {
+  easy
+  medium
+  hard
+}
+
+model Class {
+  id           String       @id @default(cuid())
+  name         String
+  inviteCode   String       @unique
+  instructorId String
+  createdAt    DateTime     @default(now())
+  instructor   User         @relation("InstructorClasses", fields: [instructorId], references: [id])
+  enrollments  Enrollment[]
+  questions    Question[]
+}
+
+model Enrollment {
+  id        String    @id @default(cuid())
+  classId   String
+  userId    String
+  role      ClassRole
+  createdAt DateTime  @default(now())
+  class     Class     @relation(fields: [classId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@unique([classId, userId])
 }
 
 model Skill {
@@ -33,15 +73,26 @@ model Skill {
 }
 
 model Question {
-  id         String    @id @default(cuid())
-  prompt     String
-  starter    String?
-  answer     String?
-  difficulty Int
-  skillId    String
-  skill      Skill     @relation(fields: [skillId], references: [id])
-  attempts   Attempt[]
-  createdAt  DateTime  @default(now())
+  id          String     @id @default(cuid())
+  prompt      String
+  starter     String?
+  answer      String?
+  hintSimple  String?
+  hintMedium  String?
+  workedExample String?
+  difficulty  Difficulty @default(medium)
+  skillId     String
+  classId     String
+  createdById String
+  skill       Skill      @relation(fields: [skillId], references: [id])
+  class       Class      @relation(fields: [classId], references: [id])
+  createdBy   User       @relation("QuestionCreatedBy", fields: [createdById], references: [id])
+  attempts    Attempt[]
+  testCases   TestCase[]
+  createdAt   DateTime   @default(now())
+
+  @@index([skillId], map: "idx_question_skill")
+  @@index([classId])
 }
 
 model Attempt {
@@ -50,9 +101,26 @@ model Attempt {
   questionId String
   correct    Boolean
   elapsedMs  Int
+  details    Json?
   createdAt  DateTime @default(now())
   user       User     @relation(fields: [userId], references: [id])
   question   Question @relation(fields: [questionId], references: [id])
+
+  @@index([questionId], map: "idx_attempt_question")
+  @@index([userId], map: "idx_attempt_user")
+}
+
+model TestCase {
+  id             String   @id @default(cuid())
+  questionId     String
+  input          String
+  expectedOutput String
+  timeoutMs      Int      @default(2000)
+  hidden         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  question       Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
 }
 
 model Mastery {
@@ -65,6 +133,7 @@ model Mastery {
   skill     Skill    @relation(fields: [skillId], references: [id])
 
   @@unique([userId, skillId], name: "userId_skillId")
+  @@index([userId], map: "idx_mastery_user")
 }
 
 model Recommendation {
@@ -75,4 +144,6 @@ model Recommendation {
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
   skill     Skill    @relation(fields: [skillId], references: [id])
+
+  @@index([userId], map: "idx_recommendation_user")
 }

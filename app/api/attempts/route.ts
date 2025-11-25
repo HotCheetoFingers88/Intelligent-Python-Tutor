@@ -1,5 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
+import { prisma } from "@/lib/prisma"
+import { getCurrentUser } from "@/lib/auth/session"
+import { getContentQuestionById, type ContentQuestion } from "@/lib/content/questions"
 
 type AttemptEntry = {
   correct: boolean
@@ -7,11 +10,35 @@ type AttemptEntry = {
   createdAt: string
 }
 
+type HintRecommendation = "simple" | "scaffold" | "worked_example"
+type UiHintTier = "simple" | "medium" | "worked_example"
+
 type MlFeedback = {
+  state?: "steady_progress" | "needs_scaffold" | "needs_review" | string
+  hintLevel?: HintRecommendation
   message?: string
-  hint?: string
   encouragement?: string
   tone?: string
+  confidence?: number
+}
+
+type RawGradeResult = {
+  index: number
+  status: "pass" | "fail" | "timeout" | "error"
+  stdout?: string | null
+  stderr?: string | null
+  actual?: string | null
+  expected?: string | null
+  input_summary?: string | null
+}
+
+type FormattedTestResult = {
+  index: number
+  label: string
+  hidden: boolean
+  status: RawGradeResult["status"]
+  stdout?: string | null
+  stderr?: string | null
 }
 
 const hintLibrary: Record<
@@ -72,18 +99,6 @@ const praiseLibrary: Record<string, string[]> = {
   ],
 }
 
-function getHint(skillId: string, stage: number): string {
-  const library = hintLibrary[skillId] || {
-    initial: "Think about the key concept behind this question and break it down.",
-    scaffold: "Focus on the first step—what needs to happen before the rest?",
-    review: "Review the related lesson material, then re-implement the solution slowly.",
-  }
-
-  if (stage <= 1) return library.initial
-  if (stage === 2) return library.scaffold
-  return library.review
-}
-
 function getPraise(skillId: string): string {
   const options = praiseLibrary[skillId]
   if (!options || options.length === 0) {
@@ -130,6 +145,12 @@ function compareCode(student: string, expected: string | null): boolean {
   return normalizedStudent.replace(/\s+/g, "") === normalizedExpected.replace(/\s+/g, "")
 }
 
+function difficultyToNumber(value: string | number | null | undefined) {
+  if (value === "easy" || value === 1) return 1
+  if (value === "hard" || value === 3) return 3
+  return 2
+}
+
 function buildPedagogicalFeedback({
   correct,
   question,
@@ -139,103 +160,352 @@ function buildPedagogicalFeedback({
   mlFeedback,
 }: {
   correct: boolean
-  question: { skillId: string; difficulty: number; answer: string | null }
+  question: { skillId: string; difficulty: "easy" | "medium" | "hard"; answer: string | null }
   mastery: number
   consecutiveIncorrect: number
   attemptCount: number
   mlFeedback: MlFeedback
-}) {
-  const nextAction = correct ? "advance" : consecutiveIncorrect >= 2 ? "focus_skill" : "retry"
-  const feedbackType = correct
-    ? "praise"
-    : consecutiveIncorrect >= 3
-      ? "review"
-      : consecutiveIncorrect >= 2
-        ? "worked_example"
-        : "hint"
+}): {
+  message: string
+  hint?: string
+  workedExample?: string
+  encouragement?: string
+  tone?: string
+  nextAction: "advance" | "retry" | "focus_skill"
+  feedbackType: string
+} {
+  const fallbackState = correct
+    ? "steady_progress"
+    : consecutiveIncorrect >= 2
+      ? "needs_review"
+      : "needs_scaffold"
+  const state = (mlFeedback.state as MlFeedback["state"]) ?? (fallbackState as MlFeedback["state"])
+  const hintLevel: HintRecommendation =
+    correct ? "simple" : mlFeedback.hintLevel ?? (state === "needs_review" ? "worked_example" : "scaffold")
+
+  const nextAction: "advance" | "retry" | "focus_skill" =
+    state === "needs_review" ? "focus_skill" : correct ? "advance" : "retry"
+  const feedbackType = correct ? "praise" : hintLevel === "worked_example" ? "worked_example" : "hint"
 
   if (correct) {
+    const message =
+      mlFeedback.message ??
+      (mastery >= 0.8
+        ? "Excellent work! You've mastered this concept."
+        : mastery >= 0.6
+          ? "Great job! Your understanding is improving."
+          : "Well done! You're making progress.")
     return {
-      message: "Great job! You're ready for the next challenge.",
+      message,
       hint: undefined,
       workedExample: undefined,
       encouragement:
-        mastery >= 0.8
+        mlFeedback.encouragement ??
+        (mastery >= 0.8
           ? "Take on a harder challenge or explore the next concept."
-          : "Keep the momentum going. You're building mastery.",
-      tone: "celebratory",
+          : "Keep the momentum going. You're building mastery."),
+      tone: mlFeedback.tone ?? (mastery >= 0.8 ? "celebratory" : "encouraging"),
       nextAction,
       feedbackType,
     }
   }
 
-  const stage = Math.max(1, consecutiveIncorrect) // ensure at least 1
-  const hintStage = stage > 1 ? 1 : stage
-  const hint = stage === 1 && mlFeedback.hint ? mlFeedback.hint : getHint(question.skillId, hintStage)
-
   let message = mlFeedback.message
   let encouragement = mlFeedback.encouragement
-  let workedExample: string | undefined
+  let tone = mlFeedback.tone
 
   if (!message) {
-    if (stage === 1) {
-      message = "Not quite yet, but you’re close. Try focusing on the key concept highlighted in the hint."
-    } else if (stage === 2) {
-      message = "We're almost there. Let's walk through a worked example together."
+    if (state === "needs_review") {
+      message = "This concept is worth reviewing. Let's walk through a worked example together."
     } else {
-      message =
-        "This concept is worth reviewing. Revisit the fundamentals, then apply them to this problem when you're ready."
+      message = "Not quite yet, but you’re close. Use the scaffolded hint to adjust your next attempt."
     }
   }
 
   if (!encouragement) {
     encouragement =
-      stage >= 3
+      state === "needs_review"
         ? "Take a moment to review the lesson material for this skill, then retry with fresh eyes."
-        : "You’ve got this—use the hint to adjust your code and run it again."
+        : "You’ve got this—apply the hint to adjust your code and run it again."
   }
 
-  if (stage >= 2 && question.answer) {
-    workedExample = question.answer
+  if (!tone) {
+    tone = state === "needs_review" ? "supportive" : "instructive"
   }
 
   return {
     message,
-    hint,
-    workedExample,
+    hint: undefined,
+    workedExample: undefined,
     encouragement,
-    tone: mlFeedback.tone || (stage >= 2 ? "instructive" : "supportive"),
+    tone,
     nextAction,
     feedbackType,
   }
 }
 
+type ContentTestDefinition = NonNullable<ContentQuestion["tests"]>[number]
+
+function convertContentTestToDbInput(questionId: string, test: ContentTestDefinition) {
+  if (test.type === "assert") {
+    const payload: Record<string, unknown> = { mode: "assert", expression: test.expression }
+    if (test.globals) {
+      payload.globals = test.globals
+    }
+    if (test.stdin) {
+      payload.stdin = test.stdin
+    }
+    return {
+      questionId,
+      input: JSON.stringify(payload),
+      expectedOutput: JSON.stringify(true),
+      timeoutMs: test.timeoutMs ?? 2000,
+      hidden: test.hidden ?? false,
+    }
+  }
+
+  if (test.type === "function") {
+    if (!test.function) {
+      throw new Error(`Missing function name for function test in question ${questionId}`)
+    }
+    const payload: Record<string, unknown> = {
+      mode: "function",
+      function: test.function,
+      args: test.args ?? [],
+      kwargs: test.kwargs ?? {},
+    }
+    if (test.globals) {
+      payload.globals = test.globals
+    }
+    return {
+      questionId,
+      input: JSON.stringify(payload),
+      expectedOutput: JSON.stringify(test.expected),
+      timeoutMs: test.timeoutMs ?? 2000,
+      hidden: test.hidden ?? false,
+    }
+  }
+
+  throw new Error(`Unsupported test type "${test.type}" for question ${questionId}`)
+}
+
+async function hydrateLegacyTestCases(questionId: string) {
+  const contentQuestion = await getContentQuestionById(questionId)
+  if (!contentQuestion?.tests || contentQuestion.tests.length === 0) {
+    return []
+  }
+
+  const data = contentQuestion.tests.map((test) => convertContentTestToDbInput(questionId, test))
+
+  try {
+    await prisma.testCase.createMany({
+      data,
+    })
+  } catch (error) {
+    console.warn(`[grade] Unable to persist autogenerated tests for ${questionId}:`, error)
+  }
+
+  return prisma.testCase.findMany({
+    where: { questionId },
+    orderBy: { createdAt: "asc" },
+  })
+}
+
+async function runRemoteGrader(payload: {
+  code: string
+  language: string
+  testCases: Array<{ input: string; expectedOutput: string; timeoutMs?: number }>
+}): Promise<{ passed: boolean; results: RawGradeResult[] }> {
+  const baseUrl = (process.env.ML_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "")
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 10000)
+
+  try {
+    const response = await fetch(`${baseUrl}/grade`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    })
+
+    if (!response.ok) {
+      const snippet = await response.text().catch(() => "")
+      throw new Error(`Grader responded with ${response.status}${snippet ? `: ${snippet}` : ""}`)
+    }
+
+    const data = await response.json()
+    return {
+      passed: Boolean(data?.passed),
+      results: Array.isArray(data?.results) ? (data.results as RawGradeResult[]) : [],
+    }
+  } catch (error) {
+    if ((error as Error).name === "AbortError") {
+      throw new Error("Grader request timed out")
+    }
+    throw error
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+function normalizeResults(testCaseCount: number, rawResults: RawGradeResult[]): RawGradeResult[] {
+  const lookup = new Map<number, RawGradeResult>()
+  rawResults.forEach((result, idx) => {
+    const index = typeof result.index === "number" ? result.index : idx
+    lookup.set(index, { ...result, index })
+  })
+
+  return Array.from({ length: testCaseCount }, (_, index) => {
+    return (
+      lookup.get(index) ?? {
+        index,
+        status: "error",
+        stdout: null,
+        stderr: "Missing grader output.",
+      }
+    )
+  })
+}
+
+function buildFormattedResults(
+  testCases: Array<{ hidden: boolean }>,
+  rawResults: RawGradeResult[],
+): FormattedTestResult[] {
+  let visibleCount = 0
+
+  return testCases.map((testCase, index) => {
+    const raw = rawResults[index] ?? { index, status: "error", stdout: null, stderr: "Missing grader output." }
+    const label = `Test #${++visibleCount}`
+    return {
+      index,
+      label,
+      hidden: testCase.hidden,
+      status: raw.status,
+      stdout: testCase.hidden ? null : raw.stdout ?? null,
+      stderr: raw.stderr ?? null,
+      actual: raw.actual ?? null,
+      expected: raw.expected ?? null,
+      inputSummary: raw.input_summary ?? null,
+    }
+  })
+}
+
+function buildFallbackGrading(
+  testCases: Array<{ hidden: boolean }>,
+  code: string,
+  referenceAnswer: string | null,
+): { results: RawGradeResult[]; passed: boolean } {
+  const fallbackPass = referenceAnswer ? compareCode(code, referenceAnswer) : false
+  const results: RawGradeResult[] = testCases.map((_, index) => {
+    if (index === 0) {
+      return {
+        index,
+        status: fallbackPass ? "pass" : "fail",
+        stdout: fallbackPass ? "Matched stored reference solution." : null,
+        stderr: fallbackPass ? null : "Fallback comparison failed.",
+        actual: fallbackPass ? referenceAnswer ?? null : code,
+        expected: referenceAnswer ?? null,
+        input_summary: "reference comparison",
+      }
+    }
+    return {
+      index,
+      status: "error",
+      stdout: null,
+      stderr: "Automated grader unavailable.",
+      actual: null,
+      expected: null,
+      input_summary: null,
+    }
+  })
+
+  return { results, passed: fallbackPass }
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { userId, questionId, answer, elapsedMs } = body
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
 
-    if (!userId || !questionId || !answer) {
+    let body: any
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+    }
+    const { questionId, code, elapsedMs } = body
+
+    if (!questionId || typeof code !== "string" || code.trim().length === 0) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const questions = await sql`
-      SELECT q.*, s.id as "skillId"
-      FROM "Question" q
-      JOIN "Skill" s ON q."skillId" = s.id
-      WHERE q.id = ${questionId}
-    `
+    let question = await prisma.question.findUnique({
+      where: { id: questionId },
+      include: {
+        testCases: {
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    })
 
-    if (questions.length === 0) {
+    if (!question) {
       return NextResponse.json({ error: "Question not found" }, { status: 404 })
     }
 
-    const question = questions[0]
+    if (!question.testCases || question.testCases.length === 0) {
+      const hydrated = await hydrateLegacyTestCases(questionId)
+      if (hydrated.length > 0) {
+        question = { ...question, testCases: hydrated }
+      }
+    }
+
+    const testCases = question.testCases ?? []
+    const hasAuthorTests = testCases.length > 0
+    const effectiveTestCases: Array<{ hidden: boolean }> = hasAuthorTests ? testCases : [{ hidden: false }]
+
+    let rawResults: RawGradeResult[] = []
+    let formattedTests: FormattedTestResult[] = []
+    let correct = false
+    let gradingEngine = "python-runner"
+
+    if (hasAuthorTests) {
+      try {
+        const gradeResponse = await runRemoteGrader({
+          code,
+          language: "python",
+          testCases: testCases.map((testCase) => ({
+            input: testCase.input,
+            expectedOutput: testCase.expectedOutput,
+            timeoutMs: testCase.timeoutMs ?? 2000,
+          })),
+        })
+        rawResults = normalizeResults(effectiveTestCases.length, gradeResponse.results ?? [])
+        formattedTests = buildFormattedResults(effectiveTestCases, rawResults)
+        correct = formattedTests.every((test) => (test.hidden ? true : test.status === "pass"))
+      } catch (error) {
+        console.error("[grade] Grader unavailable:", error)
+        return NextResponse.json(
+          {
+            error: "Automated grader unavailable. Ensure the ML service is running on http://127.0.0.1:8000.",
+          },
+          { status: 503 },
+        )
+      }
+    } else {
+      gradingEngine = "reference-answer"
+      const fallback = buildFallbackGrading(effectiveTestCases, code, question.answer)
+      rawResults = fallback.results
+      formattedTests = buildFormattedResults(effectiveTestCases, rawResults)
+      correct = fallback.passed
+    }
 
     const masteryRows = await sql`
       SELECT "pKnown"
       FROM "Mastery"
-      WHERE "userId" = ${userId} AND "skillId" = ${question.skillId}
+      WHERE "userId" = ${user.id} AND "skillId" = ${question.skillId}
       LIMIT 1
     `
 
@@ -248,17 +518,27 @@ export async function POST(request: NextRequest) {
       SELECT a.correct, a."elapsedMs", a."createdAt"
       FROM "Attempt" a
       JOIN "Question" q ON a."questionId" = q.id
-      WHERE a."userId" = ${userId} AND q."skillId" = ${question.skillId}
+      WHERE a."userId" = ${user.id} AND q."skillId" = ${question.skillId}
       ORDER BY a."createdAt" ASC
       LIMIT 50
     `
-    const correct = compareCode(answer, question.answer)
-
     const attemptId = `attempt_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
 
     await sql`
-      INSERT INTO "Attempt" ("id", "userId", "questionId", "correct", "elapsedMs", "createdAt")
-      VALUES (${attemptId}, ${userId}, ${questionId}, ${correct}, ${elapsedMs ?? 0}, NOW())
+      INSERT INTO "Attempt" ("id", "userId", "questionId", "correct", "elapsedMs", "details", "createdAt")
+      VALUES (
+        ${attemptId},
+        ${user.id},
+        ${questionId},
+        ${correct},
+        ${elapsedMs ?? 0},
+        ${{
+          engine: gradingEngine,
+          passed: correct,
+          results: rawResults,
+        }},
+        NOW()
+      )
     `
 
     const historyAfterAttempt: AttemptEntry[] = [
@@ -286,7 +566,7 @@ export async function POST(request: NextRequest) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        userId,
+        userId: user.id,
         skillId: question.skillId,
         questionId,
         correct,
@@ -333,29 +613,30 @@ export async function POST(request: NextRequest) {
 
     pKnown = Math.round(Math.min(Math.max(pKnown, 0.05), 0.98) * 100) / 100
 
-    const masteryId = `mastery_${userId}_${question.skillId}`
+    const masteryId = `mastery_${user.id}_${question.skillId}`
     await sql`
       INSERT INTO "Mastery" ("id", "userId", "skillId", "pKnown", "updatedAt")
-      VALUES (${masteryId}, ${userId}, ${question.skillId}, ${pKnown}, NOW())
+      VALUES (${masteryId}, ${user.id}, ${question.skillId}, ${pKnown}, NOW())
       ON CONFLICT ("userId", "skillId")
       DO UPDATE SET "pKnown" = ${pKnown}, "updatedAt" = NOW()
     `
 
+    const masteryDelta = pKnown - baselineMastery
     let mlFeedback: MlFeedback = {}
 
     try {
       const feedbackPayload: Record<string, unknown> = {
-        userId,
+        userId: user.id,
         correct,
-        difficulty: question.difficulty,
+        difficulty: difficultyToNumber(question.difficulty),
         attemptCount: attemptCountForSkill,
         masteryLevel: pKnown,
         recentPerformance,
+        consecutiveErrors: consecutiveIncorrect,
+        masteryDelta,
       }
 
-      if (avgElapsedMs > 0) {
-        feedbackPayload.avgTimeMs = avgElapsedMs
-      }
+      feedbackPayload.avgTimeMs = avgElapsedMs > 0 ? avgElapsedMs : elapsedMs ?? 0
 
       const feedbackResponse = await fetch(`${request.nextUrl.origin}/api/ml/feedback-style`, {
         method: "POST",
@@ -383,8 +664,22 @@ export async function POST(request: NextRequest) {
       mlFeedback,
     })
 
+    // Gate which hint tiers the UI can access based on ML recommendation (logistic-style policy).
+    let allowedHintTiers: UiHintTier[] | undefined = undefined
+    if (!correct) {
+      const hintLevel = (mlFeedback.hintLevel as HintRecommendation | undefined) ?? "simple"
+      if (hintLevel === "worked_example") {
+        allowedHintTiers = ["simple", "medium", "worked_example"]
+      } else if (hintLevel === "scaffold") {
+        allowedHintTiers = ["simple", "medium"]
+      } else {
+        allowedHintTiers = ["simple"]
+      }
+    }
+
     return NextResponse.json({
       correct,
+      passed: correct,
       feedback: pedagogicalFeedback.message,
       hint: pedagogicalFeedback.hint,
       workedExample: pedagogicalFeedback.workedExample,
@@ -395,6 +690,8 @@ export async function POST(request: NextRequest) {
       feedbackType: pedagogicalFeedback.feedbackType,
       skillId: question.skillId,
       consecutiveIncorrect,
+      tests: formattedTests,
+      allowedHintTiers,
     })
   } catch (error) {
     console.error("[v0] Error processing attempt:", error)

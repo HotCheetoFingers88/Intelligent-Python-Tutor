@@ -9,7 +9,17 @@ import { type NextRequest, NextResponse } from "next/server"
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { userId, correct, difficulty = 1, attemptCount = 1, masteryLevel = 0.5, recentPerformance = [] } = body
+    const {
+      userId,
+      correct,
+      difficulty = 2,
+      attemptCount = 1,
+      masteryLevel = 0.5,
+      masteryDelta = 0,
+      avgTimeMs = 60000,
+      consecutiveErrors,
+      recentPerformance = [],
+    } = body
 
     if (!userId || correct === undefined) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
@@ -18,10 +28,10 @@ export async function POST(request: NextRequest) {
     const mlApiUrl = process.env.ML_API_URL
 
     if (mlApiUrl) {
-      // Calculate metrics for ML model
-      const avgTimeMs = 60000 // Default 1 minute
-      const consecutiveErrors = recentPerformance.filter((r: boolean) => !r).length
-
+      const resolvedConsecutiveErrors =
+        typeof consecutiveErrors === "number"
+          ? consecutiveErrors
+          : recentPerformance.filter((r: boolean) => !r).length
       try {
         const response = await fetch(`${mlApiUrl}/feedback-style`, {
           method: "POST",
@@ -29,20 +39,26 @@ export async function POST(request: NextRequest) {
           body: JSON.stringify({
             user_id: userId,
             correct,
+            difficulty,
+            attempt_count: attemptCount,
+            mastery_level: masteryLevel,
+            mastery_delta: masteryDelta,
             recent_performance: recentPerformance.length > 0 ? recentPerformance : [correct],
             avg_time_ms: avgTimeMs,
-            consecutive_errors: consecutiveErrors,
+            consecutive_errors: resolvedConsecutiveErrors,
           }),
         })
 
         if (response.ok) {
           const data = await response.json()
           return NextResponse.json({
+            state: data.state,
+            hintLevel: data.hint_level,
             message: data.message,
-            hint: data.style === "hint" ? data.message : undefined,
-            tone: data.style === "hint" ? "encouraging" : "instructive",
-            encouragement: data.style === "worked_example" ? "Take your time to understand each step." : undefined,
-            modelVersion: "sklearn-v1",
+            tone: data.tone,
+            encouragement: data.encouragement,
+            confidence: data.confidence,
+            modelVersion: "sklearn-state-v1",
           })
         }
       } catch (error) {
@@ -50,57 +66,39 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Fallback: Mock implementation
+    // Fallback: Mock implementation mirroring the ML output contract
+    let state = "steady_progress"
+    let hintLevel: "simple" | "scaffold" | "worked_example" = "simple"
     let message = ""
-    let hint = ""
     let tone = "neutral"
     let encouragement = ""
+    const resolvedConsecutiveErrors =
+      typeof consecutiveErrors === "number" ? consecutiveErrors : recentPerformance.filter((r: boolean) => !r).length
 
-    if (correct) {
-      if (masteryLevel >= 0.8) {
-        message = "Excellent work! You've mastered this concept."
-        tone = "celebratory"
-        encouragement = "You're ready for more advanced challenges!"
-      } else if (masteryLevel >= 0.6) {
-        message = "Great job! Your understanding is improving."
-        tone = "encouraging"
-        encouragement = "Keep practicing to solidify your skills."
-      } else {
-        message = "Well done! You're making progress."
-        tone = "supportive"
-        encouragement = "Continue practicing to build confidence."
-      }
-
-      if (difficulty >= 3) {
-        message += " That was a challenging problem!"
-      }
+    if (!correct && (resolvedConsecutiveErrors >= 3 || masteryLevel < 0.4)) {
+      state = "needs_review"
+      hintLevel = "worked_example"
+      message = "Let's look at a full example together and rebuild confidence."
+      tone = "supportive"
+      encouragement = "Study the solution carefully, then try to reimplement it."
+    } else if (!correct || masteryLevel < 0.6) {
+      state = "needs_scaffold"
+      hintLevel = "scaffold"
+      message = "You're close—let's add a structured hint to guide the next step."
+      tone = "instructive"
+      encouragement = "Tackle one sub-problem at a time and re-run your code."
     } else {
-      if (attemptCount === 1) {
-        message = "Not quite right, but that's okay! Learning involves making mistakes."
-        tone = "supportive"
-        hint = "Review the problem carefully and think about the core concept being tested."
-      } else if (attemptCount === 2) {
-        message = "Still not correct, but you're working through it. Let's break it down."
-        tone = "instructive"
-        hint = "Try approaching the problem step by step. What is the first thing you need to do?"
-      } else {
-        message = "This is a tricky one! Let's focus on understanding the fundamentals."
-        tone = "patient"
-        hint = "Consider reviewing the lesson material for this skill before trying again."
-      }
-
-      if (difficulty === 1) {
-        encouragement = "You can do this! Take your time and think it through."
-      } else if (difficulty === 2) {
-        encouragement = "This requires careful thinking. Break the problem into smaller parts."
-      } else {
-        encouragement = "This is an advanced problem. Don't be discouraged - it's meant to challenge you!"
-      }
+      state = "steady_progress"
+      hintLevel = "simple"
+      message = "Great momentum! Keep applying this strategy."
+      tone = "celebratory"
+      encouragement = "If you feel ready, take on a tougher variant next."
     }
 
     return NextResponse.json({
+      state,
+      hintLevel,
       message,
-      hint: hint || undefined,
       tone,
       encouragement: encouragement || undefined,
       modelVersion: "fallback-v1",

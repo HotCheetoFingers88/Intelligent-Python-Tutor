@@ -5,7 +5,21 @@
     "prompt": "Create a variable named age and assign it the value 25.",
     "starter": "age = ",
     "answer": "age = 25",
-    "difficulty": 1
+    "difficulty": 1,
+    "tests": [
+      {
+        "type": "assert",
+        "expression": "'age' in globals()"
+      },
+      {
+        "type": "assert",
+        "expression": "isinstance(age, int)"
+      },
+      {
+        "type": "assert",
+        "expression": "age == 25"
+      }
+    ]
   },
   {
     "id": "q_var_2",
@@ -13,7 +27,21 @@
     "prompt": "Store your first name inside a variable called student_name.",
     "starter": "student_name = ",
     "answer": "student_name = \"Ada\"",
-    "difficulty": 1
+    "difficulty": 1,
+    "tests": [
+      {
+        "type": "assert",
+        "expression": "'student_name' in globals()"
+      },
+      {
+        "type": "assert",
+        "expression": "isinstance(student_name, str)"
+      },
+      {
+        "type": "assert",
+        "expression": "len(student_name.strip()) > 0"
+      }
+    ]
   },
   {
     "id": "q_var_3",
@@ -21,63 +49,345 @@
     "prompt": "Swap the values of variables x and y using a temporary variable.",
     "starter": "x = 5\ny = 10\n",
     "answer": "temp = x\nx = y\ny = temp",
-    "difficulty": 2
+    "difficulty": 2,
+    "tests": [
+      {
+        "type": "assert",
+        "globals": {
+          "x": 5,
+          "y": 10
+        },
+        "expression": "x == 10 and y == 5"
+      },
+      {
+        "type": "assert",
+        "globals": {
+          "x": 42,
+          "y": -7
+        },
+        "expression": "x == -7 and y == 42"
+      },
+      {
+        "type": "assert",
+        "globals": {
+          "x": 123,
+          "y": 0
+        },
+        "expression": "x == 0 and y == 123"
+      }
+    ]
+  },
+  {
+    "id": "q_var_4",
+    "skill_id": "skill_variables",
+    "prompt": "Complete `format_full_name(first: str, last: str)` so it returns the two names combined with a space.",
+    "starter": "def format_full_name(first: str, last: str) -> str:\n    \"\"\"Return 'First Last'.\"\"\"\n",
+    "answer": "def format_full_name(first: str, last: str) -> str:\n    full_name = f\"{first.strip()} {last.strip()}\"\n    return full_name",
+    "difficulty": 1,
+    "tests": [
+      {
+        "type": "assert",
+        "expression": "format_full_name('Ada', 'Lovelace') == 'Ada Lovelace'"
+      },
+      {
+        "type": "assert",
+        "expression": "format_full_name('Grace', 'Hopper') == 'Grace Hopper'"
+      },
+      {
+        "type": "assert",
+        "expression": "format_full_name('alan', 'turing') == 'alan turing'"
+      }
+    ]
+  },
+  {
+    "id": "q_var_5",
+    "skill_id": "skill_variables",
+    "prompt": "Implement `create_profile(name: str, city: str)` so it returns a dictionary with those values stored under 'name' and 'city'.",
+    "starter": "def create_profile(name: str, city: str) -> dict:\n    \"\"\"Return a simple profile dictionary.\"\"\"\n",
+    "answer": "def create_profile(name: str, city: str) -> dict:\n    profile = {\"name\": name, \"city\": city}\n    return profile",
+    "difficulty": 1,
+    "tests": [
+      {
+        "type": "assert",
+        "expression": "create_profile('Sam', 'Denver') == {'name': 'Sam', 'city': 'Denver'}"
+      },
+      {
+        "type": "assert",
+        "expression": "create_profile('Ava', 'Miami')['city'] == 'Miami'"
+      },
+      {
+        "type": "assert",
+        "expression": "create_profile('Ben', 'Austin')['name'] == 'Ben'"
+      }
+    ]
   },
   {
     "id": "q_cond_1",
     "skill_id": "skill_conditionals",
-    "prompt": "Write an if statement that prints \"Adult\" when age is at least 18.",
-    "starter": "age = 20\n",
-    "answer": "if age >= 18:\n    print(\"Adult\")",
-    "difficulty": 1
+    "prompt": "Complete the function `describe_age(age: int)` so it returns \"Adult\" when the provided age is at least 18 and \"Minor\" otherwise.",
+    "starter": "def describe_age(age: int) -> str:\n    \"\"\"Return 'Adult' when age >= 18, otherwise 'Minor'.\"\"\"\n",
+    "answer": "def describe_age(age: int) -> str:\n    if age >= 18:\n        return \"Adult\"\n    return \"Minor\"",
+    "difficulty": 1,
+    "tests": [
+      {
+        "type": "assert",
+        "expression": "describe_age(25) == 'Adult'"
+      },
+      {
+        "type": "assert",
+        "expression": "describe_age(18) == 'Adult'"
+      },
+      {
+        "type": "assert",
+        "expression": "describe_age(17) == 'Minor'"
+      }
+    ]
   },
   {
     "id": "q_cond_2",
     "skill_id": "skill_conditionals",
-    "prompt": "Use an if/else block to print whether num is positive or negative.",
-    "starter": "num = -5\n",
-    "answer": "if num >= 0:\n    print(\"Positive\")\nelse:\n    print(\"Negative\")",
-    "difficulty": 2
+    "prompt": "Implement `sign_label(num: int)` so it returns \"Positive\" for values greater than or equal to zero and \"Negative\" otherwise.",
+    "starter": "def sign_label(num: int) -> str:\n    \"\"\"Return 'Positive' when num >= 0, else 'Negative'.\"\"\"\n",
+    "answer": "def sign_label(num: int) -> str:\n    if num >= 0:\n        return \"Positive\"\n    return \"Negative\"",
+    "difficulty": 2,
+    "tests": [
+      {
+        "type": "assert",
+        "expression": "sign_label(12) == 'Positive'"
+      },
+      {
+        "type": "assert",
+        "expression": "sign_label(-5) == 'Negative'"
+      },
+      {
+        "type": "assert",
+        "expression": "sign_label(0) == 'Positive'"
+      }
+    ]
   },
   {
     "id": "q_cond_3",
     "skill_id": "skill_conditionals",
-    "prompt": "Grade a score using nested conditionals (A: 90+, B: 80+, C: 70+, otherwise F).",
-    "starter": "score = 85\n",
-    "answer": "if score >= 90:\n    print(\"A\")\nelif score >= 80:\n    print(\"B\")\nelif score >= 70:\n    print(\"C\")\nelse:\n    print(\"F\")",
-    "difficulty": 3
+    "prompt": "Finish `grade_score(score: int)` so it returns \"A\" for 90+, \"B\" for 80+, \"C\" for 70+, and \"F\" for anything lower.",
+    "starter": "def grade_score(score: int) -> str:\n    \"\"\"Return the letter grade for the provided score.\"\"\"\n",
+    "answer": "def grade_score(score: int) -> str:\n    if score >= 90:\n        return \"A\"\n    if score >= 80:\n        return \"B\"\n    if score >= 70:\n        return \"C\"\n    return \"F\"",
+    "difficulty": 3,
+    "tests": [
+      {
+        "type": "assert",
+        "expression": "grade_score(95) == 'A'"
+      },
+      {
+        "type": "assert",
+        "expression": "grade_score(82) == 'B'"
+      },
+      {
+        "type": "assert",
+        "expression": "grade_score(73) == 'C'"
+      },
+      {
+        "type": "assert",
+        "expression": "grade_score(60) == 'F'"
+      }
+    ]
+  },
+  {
+    "id": "q_cond_4",
+    "skill_id": "skill_conditionals",
+    "prompt": "Complete `is_even_label(num: int)` so it returns \"Even\" when the number is divisible by 2 and \"Odd\" otherwise.",
+    "starter": "def is_even_label(num: int) -> str:\n    \"\"\"Return 'Even' for divisible-by-two numbers, otherwise 'Odd'.\"\"\"\n",
+    "answer": "def is_even_label(num: int) -> str:\n    if num % 2 == 0:\n        return \"Even\"\n    return \"Odd\"",
+    "difficulty": 1,
+    "tests": [
+      {
+        "type": "assert",
+        "expression": "is_even_label(10) == 'Even'"
+      },
+      {
+        "type": "assert",
+        "expression": "is_even_label(7) == 'Odd'"
+      },
+      {
+        "type": "assert",
+        "expression": "is_even_label(0) == 'Even'"
+      }
+    ]
+  },
+  {
+    "id": "q_cond_5",
+    "skill_id": "skill_conditionals",
+    "prompt": "Implement `ride_clearance(height_inches: int)` so it returns \"Ride\" when the height is at least 48 inches and \"Grow\" otherwise.",
+    "starter": "def ride_clearance(height_inches: int) -> str:\n    \"\"\"Return ride approval based on a 48-inch minimum.\"\"\"\n",
+    "answer": "def ride_clearance(height_inches: int) -> str:\n    if height_inches >= 48:\n        return \"Ride\"\n    return \"Grow\"",
+    "difficulty": 1,
+    "tests": [
+      {
+        "type": "assert",
+        "expression": "ride_clearance(50) == 'Ride'"
+      },
+      {
+        "type": "assert",
+        "expression": "ride_clearance(48) == 'Ride'"
+      },
+      {
+        "type": "assert",
+        "expression": "ride_clearance(42) == 'Grow'"
+      }
+    ]
+  },
+  {
+    "id": "q_cond_6",
+    "skill_id": "skill_conditionals",
+    "prompt": "Build `pass_fail(score: int)` so it returns \"Pass\" when the score is 60 or higher, otherwise \"Fail\".",
+    "starter": "def pass_fail(score: int) -> str:\n    \"\"\"Return 'Pass' for 60+, else 'Fail'.\"\"\"\n",
+    "answer": "def pass_fail(score: int) -> str:\n    if score >= 60:\n        return \"Pass\"\n    return \"Fail\"",
+    "difficulty": 1,
+    "tests": [
+      {
+        "type": "assert",
+        "expression": "pass_fail(85) == 'Pass'"
+      },
+      {
+        "type": "assert",
+        "expression": "pass_fail(60) == 'Pass'"
+      },
+      {
+        "type": "assert",
+        "expression": "pass_fail(42) == 'Fail'"
+      }
+    ]
   },
   {
     "id": "q_loop_1",
     "skill_id": "skill_loops",
-    "prompt": "Write a for loop that prints the numbers 1 through 5 each on a new line.",
-    "starter": "for i in ",
-    "answer": "for i in range(1, 6):\n    print(i)",
-    "difficulty": 1
+    "prompt": "Complete `numbers_to_five()` so it returns a list containing the numbers 1 through 5 in order.",
+    "starter": "def numbers_to_five() -> list[int]:\n    \"\"\"Return [1, 2, 3, 4, 5].\"\"\"\n",
+    "answer": "def numbers_to_five() -> list[int]:\n    result = []\n    for value in range(1, 6):\n        result.append(value)\n    return result",
+    "difficulty": 1,
+    "tests": [
+      {
+        "type": "assert",
+        "expression": "numbers_to_five() == [1, 2, 3, 4, 5]"
+      },
+      {
+        "type": "assert",
+        "expression": "numbers_to_five()[0] == 1"
+      },
+      {
+        "type": "assert",
+        "expression": "numbers_to_five()[-1] == 5"
+      }
+    ]
   },
   {
     "id": "q_loop_2",
     "skill_id": "skill_loops",
-    "prompt": "Complete the while loop so it counts down from 5 to 1.",
-    "starter": "count = 5\nwhile ",
-    "answer": "count = 5\nwhile count > 0:\n    print(count)\n    count -= 1",
-    "difficulty": 2
+    "prompt": "Implement `countdown(start: int)` so it returns a list counting down from `start` to 1.",
+    "starter": "def countdown(start: int) -> list[int]:\n    \"\"\"Return a list like [start, ..., 1].\"\"\"\n",
+    "answer": "def countdown(start: int) -> list[int]:\n    values = []\n    while start > 0:\n        values.append(start)\n        start -= 1\n    return values",
+    "difficulty": 2,
+    "tests": [
+      {
+        "type": "assert",
+        "expression": "countdown(5) == [5, 4, 3, 2, 1]"
+      },
+      {
+        "type": "assert",
+        "expression": "countdown(3) == [3, 2, 1]"
+      },
+      {
+        "type": "assert",
+        "expression": "countdown(1) == [1]"
+      }
+    ]
   },
   {
     "id": "q_loop_3",
     "skill_id": "skill_loops",
-    "prompt": "Use a loop to compute the total of all numbers in the list.",
-    "starter": "numbers = [1, 2, 3, 4, 5]\ntotal = 0\n",
-    "answer": "numbers = [1, 2, 3, 4, 5]\ntotal = 0\nfor num in numbers:\n    total += num\nprint(total)",
-    "difficulty": 2
+    "prompt": "Fill in `sum_list(numbers: list[int])` so it returns the total of every value in the list.",
+    "starter": "def sum_list(numbers: list[int]) -> int:\n    \"\"\"Return the sum of all numbers.\"\"\"\n",
+    "answer": "def sum_list(numbers: list[int]) -> int:\n    total = 0\n    for num in numbers:\n        total += num\n    return total",
+    "difficulty": 2,
+    "tests": [
+      {
+        "type": "assert",
+        "expression": "sum_list([1, 2, 3, 4, 5]) == 15"
+      },
+      {
+        "type": "assert",
+        "expression": "sum_list([10, -5, 5]) == 10"
+      },
+      {
+        "type": "assert",
+        "expression": "sum_list([0]) == 0"
+      }
+    ]
   },
   {
     "id": "q_loop_4",
     "skill_id": "skill_loops",
-    "prompt": "Build a string called row that contains the 7 times table from 7 to 70 separated by spaces.",
-    "starter": "row = \"\"\nfor n in range(1, 11):\n    ",
-    "answer": "row = \"\"\nfor n in range(1, 11):\n    row += f\"{7 * n} \"\nprint(row.strip())",
-    "difficulty": 3
+    "prompt": "Build `seven_times_table()` so it returns a single string containing the 7 times table from 7 up to 70 separated by spaces.",
+    "starter": "def seven_times_table() -> str:\n    \"\"\"Return '7 14 ... 70'.\"\"\"\n",
+    "answer": "def seven_times_table() -> str:\n    parts = []\n    for n in range(1, 11):\n        parts.append(str(7 * n))\n    return \" \".join(parts)",
+    "difficulty": 3,
+    "tests": [
+      {
+        "type": "assert",
+        "expression": "seven_times_table().split() == [str(7 * n) for n in range(1, 11)]"
+      },
+      {
+        "type": "assert",
+        "expression": "len(seven_times_table().split()) == 10"
+      },
+      {
+        "type": "assert",
+        "expression": "seven_times_table().split()[0] == '7' and seven_times_table().split()[-1] == '70'"
+      }
+    ]
+  },
+  {
+    "id": "q_loop_5",
+    "skill_id": "skill_loops",
+    "prompt": "Finish `repeat_word(word: str, times: int)` so it returns a list containing the word repeated `times` times.",
+    "starter": "def repeat_word(word: str, times: int) -> list[str]:\n    \"\"\"Return ['word', ...] repeated times.\"\"\"\n",
+    "answer": "def repeat_word(word: str, times: int) -> list[str]:\n    copies = []\n    for _ in range(times):\n        copies.append(word)\n    return copies",
+    "difficulty": 1,
+    "tests": [
+      {
+        "type": "assert",
+        "expression": "repeat_word('hi', 3) == ['hi', 'hi', 'hi']"
+      },
+      {
+        "type": "assert",
+        "expression": "len(repeat_word('loop', 2)) == 2"
+      },
+      {
+        "type": "assert",
+        "expression": "repeat_word('a', 1)[0] == 'a'"
+      }
+    ]
+  },
+  {
+    "id": "q_loop_6",
+    "skill_id": "skill_loops",
+    "prompt": "Create `even_numbers(limit: int)` so it returns a list of even numbers from 0 up to `limit` inclusive.",
+    "starter": "def even_numbers(limit: int) -> list[int]:\n    \"\"\"Return evens up to limit.\"\"\"\n",
+    "answer": "def even_numbers(limit: int) -> list[int]:\n    values = []\n    for number in range(0, limit + 1, 2):\n        values.append(number)\n    return values",
+    "difficulty": 1,
+    "tests": [
+      {
+        "type": "assert",
+        "expression": "even_numbers(6) == [0, 2, 4, 6]"
+      },
+      {
+        "type": "assert",
+        "expression": "even_numbers(1) == [0]"
+      },
+      {
+        "type": "assert",
+        "expression": "even_numbers(8)[-1] == 8"
+      }
+    ]
   },
   {
     "id": "q_func_1",
@@ -85,7 +395,21 @@
     "prompt": "Define a function named square that returns the square of a number.",
     "starter": "def square(n):\n    ",
     "answer": "def square(n):\n    return n * n",
-    "difficulty": 2
+    "difficulty": 2,
+    "tests": [
+      {
+        "type": "assert",
+        "expression": "'square' in globals()"
+      },
+      {
+        "type": "assert",
+        "expression": "square(4) == 16"
+      },
+      {
+        "type": "assert",
+        "expression": "square(-3) == 9"
+      }
+    ]
   },
   {
     "id": "q_func_2",
@@ -93,7 +417,21 @@
     "prompt": "Create a function add that returns the sum of two numbers a and b.",
     "starter": "def add(a, b):\n    ",
     "answer": "def add(a, b):\n    return a + b",
-    "difficulty": 2
+    "difficulty": 2,
+    "tests": [
+      {
+        "type": "assert",
+        "expression": "'add' in globals()"
+      },
+      {
+        "type": "assert",
+        "expression": "add(2, 3) == 5"
+      },
+      {
+        "type": "assert",
+        "expression": "add(-1, 4) == 3"
+      }
+    ]
   },
   {
     "id": "q_func_3",
@@ -101,30 +439,174 @@
     "prompt": "Write a recursive function factorial that multiplies numbers down to 1.",
     "starter": "def factorial(n):\n    ",
     "answer": "def factorial(n):\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)",
-    "difficulty": 3
+    "difficulty": 3,
+    "tests": [
+      {
+        "type": "assert",
+        "expression": "'factorial' in globals()"
+      },
+      {
+        "type": "assert",
+        "expression": "factorial(5) == 120"
+      },
+      {
+        "type": "assert",
+        "expression": "factorial(0) == 1"
+      }
+    ]
+  },
+  {
+    "id": "q_func_4",
+    "skill_id": "skill_functions",
+    "prompt": "Implement `greet(name: str)` so it returns the string \"Hello, <name>!\".",
+    "starter": "def greet(name: str) -> str:\n    \"\"\"Return a friendly greeting.\"\"\"\n",
+    "answer": "def greet(name: str) -> str:\n    return f\"Hello, {name}!\"",
+    "difficulty": 1,
+    "tests": [
+      {
+        "type": "assert",
+        "expression": "greet('Maya') == 'Hello, Maya!'"
+      },
+      {
+        "type": "assert",
+        "expression": "greet('Alex') == 'Hello, Alex!'"
+      },
+      {
+        "type": "assert",
+        "expression": "greet('Ada').startswith('Hello')"
+      }
+    ]
+  },
+  {
+    "id": "q_func_5",
+    "skill_id": "skill_functions",
+    "prompt": "Complete `absolute_difference(a: int, b: int)` so it returns the positive difference between the two numbers.",
+    "starter": "def absolute_difference(a: int, b: int) -> int:\n    \"\"\"Return |a - b|.\"\"\"\n",
+    "answer": "def absolute_difference(a: int, b: int) -> int:\n    difference = a - b\n    if difference < 0:\n        difference = -difference\n    return difference",
+    "difficulty": 1,
+    "tests": [
+      {
+        "type": "assert",
+        "expression": "absolute_difference(5, 2) == 3"
+      },
+      {
+        "type": "assert",
+        "expression": "absolute_difference(2, 5) == 3"
+      },
+      {
+        "type": "assert",
+        "expression": "absolute_difference(7, 7) == 0"
+      }
+    ]
   },
   {
     "id": "q_list_1",
     "skill_id": "skill_lists",
-    "prompt": "Create a list named fruits that contains three strings.",
-    "starter": "fruits = ",
-    "answer": "fruits = [\"apple\", \"banana\", \"orange\"]",
-    "difficulty": 1
+    "prompt": "Create the function `make_fruits()` so it returns a list containing at least three string values representing fruits.",
+    "starter": "def make_fruits() -> list[str]:\n    \"\"\"Return a list with at least three fruit names.\"\"\"\n",
+    "answer": "def make_fruits() -> list[str]:\n    return ['apple', 'banana', 'orange']",
+    "difficulty": 1,
+    "tests": [
+      {
+        "type": "assert",
+        "expression": "len(make_fruits()) >= 3"
+      },
+      {
+        "type": "assert",
+        "expression": "all(isinstance(item, str) for item in make_fruits())"
+      },
+      {
+        "type": "assert",
+        "expression": "all(name.strip() for name in make_fruits()[:3])"
+      }
+    ]
   },
   {
     "id": "q_list_2",
     "skill_id": "skill_lists",
-    "prompt": "Store the second element of items inside the variable second.",
-    "starter": "items = [10, 20, 30]\n",
-    "answer": "items = [10, 20, 30]\nsecond = items[1]",
-    "difficulty": 1
+    "prompt": "Write `second_value(items: list[int])` so it returns the second element from the list without modifying the input list.",
+    "starter": "def second_value(items: list[int]) -> int:\n    \"\"\"Return the value at index 1.\"\"\"\n",
+    "answer": "def second_value(items: list[int]) -> int:\n    return items[1]",
+    "difficulty": 1,
+    "tests": [
+      {
+        "type": "assert",
+        "expression": "second_value([10, 20, 30]) == 20"
+      },
+      {
+        "type": "assert",
+        "expression": "second_value([5, -1, 9]) == -1"
+      },
+      {
+        "type": "assert",
+        "expression": "second_value([1, 2, 3]) == 2"
+      }
+    ]
   },
   {
     "id": "q_list_3",
     "skill_id": "skill_lists",
-    "prompt": "Append \"green\" to the colors list and print the updated list.",
-    "starter": "colors = [\"red\", \"blue\"]\n",
-    "answer": "colors = [\"red\", \"blue\"]\ncolors.append(\"green\")\nprint(colors)",
-    "difficulty": 2
+    "prompt": "Complete `append_green(colors: list[str])` so it appends the string \"green\" and returns the updated list.",
+    "starter": "def append_green(colors: list[str]) -> list[str]:\n    \"\"\"Return the list with 'green' appended.\"\"\"\n",
+    "answer": "def append_green(colors: list[str]) -> list[str]:\n    colors.append('green')\n    return colors",
+    "difficulty": 2,
+    "tests": [
+      {
+        "type": "assert",
+        "expression": "append_green(['red', 'blue'])[-1] == 'green'"
+      },
+      {
+        "type": "assert",
+        "expression": "append_green(['yellow']).count('green') == 1"
+      },
+      {
+        "type": "assert",
+        "expression": "len(append_green(['teal', 'navy'])) == 3"
+      }
+    ]
+  },
+  {
+    "id": "q_list_4",
+    "skill_id": "skill_lists",
+    "prompt": "Complete `first_and_last(items: list[int])` so it returns a two-element list containing the first and last values.",
+    "starter": "def first_and_last(items: list[int]) -> list[int]:\n    \"\"\"Return [items[0], items[-1]].\"\"\"\n",
+    "answer": "def first_and_last(items: list[int]) -> list[int]:\n    return [items[0], items[-1]]",
+    "difficulty": 1,
+    "tests": [
+      {
+        "type": "assert",
+        "expression": "first_and_last([1, 2, 3, 4]) == [1, 4]"
+      },
+      {
+        "type": "assert",
+        "expression": "first_and_last([5, 10]) == [5, 10]"
+      },
+      {
+        "type": "assert",
+        "expression": "first_and_last([9, 8, 7])[1] == 7"
+      }
+    ]
+  },
+  {
+    "id": "q_list_5",
+    "skill_id": "skill_lists",
+    "prompt": "Implement `merge_names(primary: list[str], extras: list[str])` so it returns a new list containing every element from `primary` followed by every element in `extras`.",
+    "starter": "def merge_names(primary: list[str], extras: list[str]) -> list[str]:\n    \"\"\"Return the concatenation of both lists.\"\"\"\n",
+    "answer": "def merge_names(primary: list[str], extras: list[str]) -> list[str]:\n    combined = primary + extras\n    return combined",
+    "difficulty": 1,
+    "tests": [
+      {
+        "type": "assert",
+        "expression": "merge_names(['Ada'], ['Grace', 'Lin']) == ['Ada', 'Grace', 'Lin']"
+      },
+      {
+        "type": "assert",
+        "expression": "merge_names(['Ruth', 'Ida'], []) == ['Ruth', 'Ida']"
+      },
+      {
+        "type": "assert",
+        "expression": "merge_names(['A'], ['B', 'C'])[-1] == 'C'"
+      }
+    ]
   }
 ]

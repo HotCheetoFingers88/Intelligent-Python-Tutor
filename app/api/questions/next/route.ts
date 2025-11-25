@@ -1,6 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 import type { QuestionWithSkill } from "@/lib/types"
+import { prisma } from "@/lib/prisma"
+import { GLOBAL_CLASS_ID } from "@/lib/constants"
+import { getCurrentUser } from "@/lib/auth/session"
 
 interface SkillScore {
   skillId: string
@@ -18,14 +21,42 @@ function normalizeBoolean(value: any): boolean {
   return false
 }
 
+function difficultyWeight(value: string | number | null | undefined) {
+  if (value === "easy" || value === 1) return 1
+  if (value === "hard" || value === 3) return 3
+  return 2
+}
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
-    const userId = searchParams.get("userId")
     const desiredSkillId = searchParams.get("skillId")
+    const requestedClassId = searchParams.get("classId")
+    const user = await getCurrentUser()
 
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 })
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const userId = user.id
+    const classId =
+      requestedClassId && requestedClassId !== "all" ? requestedClassId : GLOBAL_CLASS_ID
+
+    if (classId !== GLOBAL_CLASS_ID) {
+      const hasAccess = await prisma.class.findFirst({
+        where: {
+          id: classId,
+          OR: [
+            { instructorId: userId },
+            { enrollments: { some: { userId } } },
+          ],
+        },
+        select: { id: true },
+      })
+
+      if (!hasAccess) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
     }
 
     const useMl = (process.env.USE_ML || "").toLowerCase() === "true"
@@ -55,6 +86,7 @@ export async function GET(request: NextRequest) {
       WHERE a."userId" = ${userId}
       ORDER BY a."createdAt" ASC
     `
+    const recentAttemptsArray = recentAttempts as Array<{ skillId: string; correct: boolean }>
 
     const baselineMastery: Record<string, number> = {
       skill_variables: 0.92,
@@ -78,7 +110,7 @@ export async function GET(request: NextRequest) {
 
     const incorrectStreakMap = new Map<string, number>()
     const correctStreakMap = new Map<string, number>()
-    for (const attempt of recentAttempts as Array<{ skillId: string; correct: boolean }>) {
+    for (const attempt of recentAttemptsArray) {
       const incorrectCurrent = incorrectStreakMap.get(attempt.skillId) ?? 0
       const correctCurrent = correctStreakMap.get(attempt.skillId) ?? 0
       if (attempt.correct) {
@@ -204,6 +236,38 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const adaptiveDifficultyEnabled = useMl
+
+    let adaptiveDifficulty: "easy" | "medium" | "hard" | null = null
+    if (adaptiveDifficultyEnabled && selectedSkillScore) {
+      try {
+        const lastSkillAttempt = [...recentAttemptsArray].reverse().find((attempt) => attempt.skillId === targetSkillId)
+        const lastCorrect = lastSkillAttempt ? normalizeBoolean(lastSkillAttempt.correct) : true
+        const response = await fetch(`${request.nextUrl.origin}/api/ml/adaptive-difficulty`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            skillMastery: selectedSkillScore.mastery,
+            consecutiveIncorrect: selectedSkillScore.consecutiveIncorrect,
+            consecutiveCorrect: selectedSkillScore.consecutiveCorrect,
+            rollingAccuracy: selectedSkillScore.accuracy,
+            baselineDifficulty: targetDifficulty === 1 ? "easy" : targetDifficulty === 3 ? "hard" : "medium",
+            lastCorrect,
+            avgTimeMs: 60000,
+          }),
+        })
+        if (response.ok) {
+          const data = await response.json()
+          if (data?.difficulty === "easy") targetDifficulty = 1
+          else if (data?.difficulty === "hard") targetDifficulty = 3
+          else targetDifficulty = 2
+          adaptiveDifficulty = data?.difficulty ?? null
+        }
+      } catch (error) {
+        console.warn("[v0] Adaptive difficulty fallback:", (error as Error)?.message ?? error)
+      }
+    }
+
     const questions = await sql`
       SELECT 
         q.*,
@@ -224,24 +288,23 @@ export async function GET(request: NextRequest) {
       FROM "Question" q
       JOIN "Skill" s ON q."skillId" = s.id
       WHERE q."skillId" = ${targetSkillId}
+        AND q."classId" = ${classId}
     `
 
     if (questions.length === 0) {
       return NextResponse.json({ error: "No questions available", targetSkillId }, { status: 404 })
     }
 
-    const ranked = (questions as any[]).sort((a, b) => {
-      const aDelta = Math.abs(Number(a.difficulty ?? 2) - targetDifficulty)
-      const bDelta = Math.abs(Number(b.difficulty ?? 2) - targetDifficulty)
+    const unsolved = (questions as any[]).filter((question) => !normalizeBoolean(question.hasCorrect))
+    const questionPool = unsolved.length > 0 ? unsolved : (questions as any[])
+
+    const ranked = questionPool.sort((a, b) => {
+      const aDifficultyWeight = difficultyWeight(a.difficulty)
+      const bDifficultyWeight = difficultyWeight(b.difficulty)
+      const aDelta = Math.abs(aDifficultyWeight - targetDifficulty)
+      const bDelta = Math.abs(bDifficultyWeight - targetDifficulty)
       if (aDelta !== bDelta) {
         return aDelta - bDelta
-      }
-
-      const aResolved = normalizeBoolean(a.hasCorrect)
-      const bResolved = normalizeBoolean(b.hasCorrect)
-
-      if (aResolved !== bResolved) {
-        return aResolved ? 1 : -1 // Prefer unsolved questions
       }
 
       const aIncorrect = Number(a.incorrectAttempts ?? 0)
@@ -256,10 +319,54 @@ export async function GET(request: NextRequest) {
         return aLast - bLast // Prefer older attempts
       }
 
-      return a.difficulty - b.difficulty
+      return aDifficultyWeight - bDifficultyWeight
     })
 
     const questionData = ranked[0]
+    let predictedDifficulty: string | null = null
+    let difficultyConfidence: number | null = null
+
+    try {
+      const baseDifficulty =
+        typeof questionData.difficulty === "number"
+          ? questionData.difficulty === 1
+            ? "easy"
+            : questionData.difficulty === 3
+              ? "hard"
+              : "medium"
+          : (questionData.difficulty as "easy" | "medium" | "hard")
+      const baseWeight = difficultyWeight(questionData.difficulty)
+      const avgTimeEstimate = baseWeight === 1 ? 45000 : baseWeight === 2 ? 70000 : 105000
+      const diffResponse = await fetch(`${request.nextUrl.origin}/api/ml/difficulty`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          samples: [
+            {
+              questionId: questionData.id,
+              baseDifficulty,
+              avgTimeMs: avgTimeEstimate,
+              incorrectAttempts: Number(questionData.incorrectAttempts ?? 0),
+              hasCorrect: normalizeBoolean(questionData.hasCorrect),
+              masteryLevel: masteryMap.get(questionData.skillId) ?? baselineMastery[questionData.skillId] ?? 0.6,
+              consecutiveIncorrect: selectedSkillScore?.consecutiveIncorrect ?? 0,
+              skillAttempts: Number(accuracyMap.get(questionData.skillId)?.total ?? 0),
+            },
+          ],
+        }),
+      })
+
+      if (diffResponse.ok) {
+        const diffData = await diffResponse.json()
+        const prediction = diffData?.predictions?.[0]
+        if (prediction?.difficulty) {
+          predictedDifficulty = prediction.difficulty
+          difficultyConfidence = typeof prediction.confidence === "number" ? prediction.confidence : null
+        }
+      }
+    } catch (error) {
+      console.warn("[v0] Difficulty ML fallback:", (error as Error)?.message ?? error)
+    }
     const question: QuestionWithSkill = {
       id: questionData.id,
       prompt: questionData.prompt,
@@ -286,6 +393,9 @@ export async function GET(request: NextRequest) {
         consecutiveIncorrect: incorrectStreakMap.get(questionData.skillId) ?? 0,
         totalAttempts: Number(accuracyMap.get(questionData.skillId)?.total ?? 0),
         difficulty: questionData.difficulty,
+        predictedDifficulty,
+        difficultyConfidence,
+        adaptiveDifficulty,
       },
     })
   } catch (error) {

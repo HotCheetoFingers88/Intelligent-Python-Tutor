@@ -1,19 +1,24 @@
+export const dynamic = "force-dynamic"
+
 import { AppNav } from "@/components/app-nav"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
-import { BookOpen, LayoutDashboard, Sparkles, Code2, Brain, Zap } from "lucide-react"
+import { BookOpen, LayoutDashboard, Sparkles, Code2, Brain, Zap, UserPlus, LogIn } from "lucide-react"
+import { getCurrentUser } from "@/lib/auth/session"
 
-export default function HomePage() {
+export default async function HomePage() {
+  const user = await getCurrentUser()
+  const userRole = typeof user?.role === "string" ? user.role.toLowerCase() : undefined
   return (
-    <div className="min-h-screen bg-background">
-      <AppNav />
+    <div className="relative min-h-screen overflow-hidden">
+      <AppNav user={user ?? undefined} />
 
-      <main className="container mx-auto px-4 py-0">
-        <div className="mx-auto max-w-6xl space-y-12">
+      <main className="relative z-10 container mx-auto px-4 py-0">
+        <div className="mx-auto max-w-6xl space-y-3 pb-12">
           {/* Hero Section */}
-          <div className="text-center space-y-6 py-4">
-            <div className="inline-flex items-center gap-2 rounded-full glass px-6 py-3 text-sm font-medium text-accent border border-white/20">
+          <section className="text-center space-y-4 py-8 px-8">
+            <div className="inline-flex items-center gap-2 rounded-full glass px-6 py-3 text-sm font-medium text-accent border border-white/20 mx-auto">
               <Sparkles className="h-4 w-4" />
               Intelligent Tutoring System
             </div>
@@ -28,30 +33,60 @@ export default function HomePage() {
               An intelligent tutoring system that adapts to your learning style, provides personalized feedback, and
               helps you build programming skills efficiently.
             </p>
-            <div className="flex flex-wrap justify-center gap-4 pt-6">
-              <Button
-                asChild
-                size="lg"
-                className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg shadow-accent/20"
-              >
-                <Link href="/student/practice">
-                  <Code2 className="h-4 w-4 mr-2" />
-                  Start Practicing
-                </Link>
-              </Button>
-              <Button
-                asChild
-                variant="outline"
-                size="lg"
-                className="glass border-white/20 hover:bg-white/5 bg-transparent"
-              >
-                <Link href="/student/dashboard">
-                  <LayoutDashboard className="h-4 w-4 mr-2" />
-                  View Dashboard
-                </Link>
-              </Button>
+            <div className="flex flex-wrap justify-center gap-4 pt-4">
+              {user ? (
+                <>
+                  <Button
+                    asChild
+                    size="lg"
+                    variant="outline"
+                    className="glass border-white/20 hover:bg-white/5 bg-transparent"
+                  >
+                    <Link href="/student/dashboard">
+                      <LayoutDashboard className="h-4 w-4 mr-2" />
+                      View Dashboard
+                    </Link>
+                  </Button>
+                  <Button asChild size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg shadow-accent/10">
+                    <Link href="/student/practice">
+                      <Code2 className="h-4 w-4 mr-2" />
+                      Start Practicing
+                    </Link>
+                  </Button>
+                  {userRole === "instructor" && (
+                    <Button
+                      asChild
+                      size="lg"
+                      variant="secondary"
+                      className="glass border-white/20 bg-white/10 hover:bg-white/20"
+                    >
+                      <Link href="/instructor">Instructor Console</Link>
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Button asChild size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg shadow-accent/10">
+                    <Link href="/login">
+                      <LogIn className="h-4 w-4 mr-2" />
+                      Log In
+                    </Link>
+                  </Button>
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="lg"
+                    className="glass border-white/20 hover:bg-white/5 bg-transparent"
+                  >
+                    <Link href="/signup">
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Sign Up
+                    </Link>
+                  </Button>
+                </>
+              )}
             </div>
-          </div>
+          </section>
 
           {/* Features */}
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

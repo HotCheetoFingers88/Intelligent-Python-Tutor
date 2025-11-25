@@ -1,14 +1,13 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 import type { MasteryWithSkill } from "@/lib/types"
+import { getCurrentUser } from "@/lib/auth/session"
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const searchParams = request.nextUrl.searchParams
-    const userId = searchParams.get("userId")
-
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 })
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     // Get all skills first
@@ -22,7 +21,7 @@ export async function GET(request: NextRequest) {
       SELECT m.*, s.name as "skillName", s."order" as "skillOrder", s."createdAt" as "skillCreatedAt"
       FROM "Mastery" m
       JOIN "Skill" s ON m."skillId" = s.id
-      WHERE m."userId" = ${userId}
+      WHERE m."userId" = ${user.id}
       ORDER BY s."order" ASC
     `
 
@@ -48,8 +47,8 @@ export async function GET(request: NextRequest) {
 
       // Return placeholder for unpracticed skills
       return {
-        id: `placeholder_${skill.id}`,
-        userId,
+        id: `placeholder_${skill.id}_${user.id}`,
+        userId: user.id,
         skillId: skill.id,
         pKnown: 0,
         updatedAt: new Date(),

@@ -1,15 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 import type { RecommendationWithSkill } from "@/lib/types"
+import { getCurrentUser } from "@/lib/auth/session"
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams
-    const userId = searchParams.get("userId")
-
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 })
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    const userId = user.id
 
     // Get mastery data with skill information
     const masteryData = await sql`

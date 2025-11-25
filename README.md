@@ -42,9 +42,12 @@ Both stages share the same domain model and can run independently or together.
 - **Adaptive Learning**: Questions selected based on your current mastery level
 - **Progress Dashboard**: Track mastery across different programming skills
 - **Personalized Recommendations**: Get AI-powered suggestions for what to learn next
+- **Class Enrollments**: Join instructor-led classes via invite links and switch between personal or class practice sessions.
+- **Full Authentication Flow**: Unique username/email signup, bcrypt-secured passwords, and dashboard/practice routes protected by server-side session checks.
 
 ### Instructor Features
 - **Skills Management**: Create and organize programming skills in a learning sequence
+- **Class Management**: Spin up classes with invite links, monitor enrollments, and author scoped questions per class
 - **Question Bank**: Build a comprehensive library of practice questions
 - **CRUD Operations**: Full control over skills and questions with an intuitive interface
 
@@ -72,16 +75,15 @@ Both stages share the same domain model and can run independently or together.
 ### Installation
 
 **1. Set up environment variables**
-- `NEON_NEON_DATABASE_URL` is automatically configured via Neon integration
-- Optional: `ML_API_URL` for external ML service (e.g. `https://your-ml-service.railway.app`)
-- `USE_ML=true` to enable ML features (defaults to rules-based)
+- `DATABASE_URL` – your Neon (or Postgres) connection string
+- `AUTH_SECRET` – long random string used to sign session cookies
+- Optional: `ML_API_URL` if you are running the FastAPI service
+- Optional: `USE_ML=true` to enable ML-driven question selection
 
-**2. Initialize the database**
-Run the SQL scripts in order:
+**2. Initialize the database with Prisma**
 ```bash
-# These scripts are in the /scripts folder
-001-create-tables.sql
-003-seed-from-json.sql
+npx prisma migrate deploy
+npx prisma db seed   # optional, loads demo users/questions
 ```
 
 **3. Try the CLI demo (Stage 1)**
@@ -98,6 +100,12 @@ This demonstrates the rules-based ITS with:
 
 **4. Start the web app**
 The app will be available at your preview URL
+
+### Testing
+
+- `npm run test` – runs the Vitest unit suite (password hashing + uniqueness guards)
+- `npm run test:e2e` – Playwright smoke test (Signup → Dashboard → Logout → Login).  
+  Run `npx playwright install` once to download the browsers.
 
 **5. Optional: Run the ML microservice (Stage 2)**
 
@@ -311,7 +319,10 @@ Use this checklist to run the three flagship demos that prove ascend.py’s adap
 # Terminal 1 — reset & seed the database
 cd /home/akshay/ascend
 export DATABASE_URL="postgresql://neondb_owner:npg_2MBoWPOhTL0Q@ep-orange-feather-aet7m8tw-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require"
-psql "$DATABASE_URL" -f scripts/001-create-tables.sql
+# Optional full reset
+psql "$DATABASE_URL" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
+# Apply current schema and seed demo data
+npx prisma migrate deploy
 psql "$DATABASE_URL" -f scripts/003-seed-from-json.sql
 
 # Terminal 2 — start the ML microservice

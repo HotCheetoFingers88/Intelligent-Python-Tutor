@@ -1,12 +1,30 @@
 import { AppNav } from "@/components/app-nav"
 import { DashboardView } from "@/components/dashboard-view"
+import { requireUser } from "@/lib/auth/session"
 
-export default function DashboardPage() {
+type DashboardPageProps = {
+  searchParams?: {
+    welcome?: string
+  }
+}
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  const user = await requireUser()
+  const resolvedParams = await searchParams
+  const welcomeParam = resolvedParams?.welcome
+
+  const welcomeMessage =
+    welcomeParam === "new"
+      ? `Welcome, ${user.username}`
+      : welcomeParam === "back"
+        ? `Welcome back, ${user.username}`
+        : undefined
+
   return (
-    <div className="min-h-screen bg-background">
-      <AppNav />
+    <div className="min-h-screen">
+      <AppNav user={user} />
       <main className="container mx-auto px-4 py-8">
-        <DashboardView />
+        <DashboardView welcomeMessage={welcomeMessage} username={user.username} />
       </main>
     </div>
   )

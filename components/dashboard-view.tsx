@@ -5,26 +5,43 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, TrendingUp, Target, Lightbulb, ArrowRight, Sparkles } from "lucide-react"
+import { Loader2, TrendingUp, Target, Lightbulb, ArrowRight, Sparkles, BookOpen } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import type { MasteryWithSkill, RecommendationWithSkill } from "@/lib/types"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { useRouter } from "next/navigation"
+import { Input } from "@/components/ui/input"
 
-export function DashboardView() {
+type DashboardViewProps = {
+  welcomeMessage?: string
+  username: string
+}
+
+type UserClass = {
+  id: string
+  name: string
+  role: "student" | "instructor"
+  inviteCode?: string
+}
+
+export function DashboardView({ welcomeMessage, username }: DashboardViewProps) {
   const [mastery, setMastery] = useState<MasteryWithSkill[]>([])
   const [recommendations, setRecommendations] = useState<RecommendationWithSkill[]>([])
+  const [classes, setClasses] = useState<UserClass[]>([])
+  const [joinCode, setJoinCode] = useState("")
+  const [joining, setJoining] = useState(false)
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
-
-  // Hardcoded user ID for demo
-  const userId = "user_student_1"
+  const router = useRouter()
 
   const fetchDashboardData = useCallback(async () => {
     setLoading(true)
     try {
-      const [masteryRes, recsRes] = await Promise.all([
-        fetch(`/api/mastery?userId=${userId}`),
-        fetch(`/api/recommendations?userId=${userId}`),
+      const [masteryRes, recsRes, classesRes] = await Promise.all([
+        fetch(`/api/mastery`),
+        fetch(`/api/recommendations`),
+        fetch(`/api/classes/enrollments`).catch(() => null),
       ])
 
       if (!masteryRes.ok || !recsRes.ok) {
@@ -33,9 +50,15 @@ export function DashboardView() {
 
       const masteryData = await masteryRes.json()
       const recsData = await recsRes.json()
-
       setMastery(masteryData.mastery)
       setRecommendations(recsData.recommendations)
+
+      if (classesRes && classesRes.ok) {
+        const classesData = await classesRes.json()
+        setClasses(classesData.classes ?? [])
+      } else {
+        setClasses([])
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -45,11 +68,42 @@ export function DashboardView() {
     } finally {
       setLoading(false)
     }
-  }, [toast, userId])
+  }, [toast])
 
   useEffect(() => {
     fetchDashboardData()
   }, [fetchDashboardData])
+
+  useEffect(() => {
+    if (welcomeMessage) {
+      // Remove the query param after showing the banner
+      router.replace("/student/dashboard", { scroll: false })
+    }
+  }, [router, welcomeMessage])
+
+  const handleJoinClass = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!joinCode.trim()) return
+    setJoining(true)
+    try {
+      const response = await fetch(`/api/join/${joinCode.trim()}`)
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data?.error ?? "Invalid invite code")
+      }
+      toast({ title: "Joined class", description: `Welcome to ${data?.class?.name ?? "the class"}!` })
+      setJoinCode("")
+      fetchDashboardData()
+    } catch (error) {
+      toast({
+        title: "Unable to join class",
+        description: (error as Error)?.message ?? "Please verify the code and try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setJoining(false)
+    }
+  }
 
   const getMasteryLevel = (pKnown: number) => {
     if (pKnown >= 0.8) return { label: "Mastered", color: "text-green-600" }
@@ -74,10 +128,25 @@ export function DashboardView() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
+      {welcomeMessage && (
+        <Alert
+          data-testid="welcome-banner"
+          className="glass-strong border-accent/30 bg-accent/10 text-accent-foreground"
+        >
+          <Sparkles className="h-5 w-5 text-accent" />
+          <AlertTitle>{welcomeMessage}</AlertTitle>
+          <AlertDescription>Let&apos;s keep the streak going!</AlertDescription>
+        </Alert>
+      )}
+
       {/* Header */}
-      <div>
-        <h1 className="text-4xl font-bold text-accent">Your Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Track your progress and get personalized recommendations</p>
+      <div className="space-y-1">
+        <h1 className="text-4xl font-bold text-accent">
+          {welcomeMessage ? welcomeMessage : `Welcome back, ${username}`}
+        </h1>
+        <p className="text-muted-foreground mt-1">
+          Track your progress, manage your classes, and jump into questions whenever you&apos;re ready.
+        </p>
       </div>
 
       {/* Overall Progress */}
@@ -157,7 +226,7 @@ export function DashboardView() {
                     <Button
                       asChild
                       variant="outline"
-                      className="gap-2 border-white/20 hover:border-accent/40"
+                      className="gap-2 border-white/20 hover:border-accent/40 hover:bg-primary/30 transition-colors"
                     >
                       <Link href={`/student/practice?skillId=${m.skill.id}`}>
                         Practice skill
@@ -222,6 +291,59 @@ export function DashboardView() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* My Classes */}
+      <div className="space-y-4">
+        <h2 className="text-3xl font-bold text-accent flex items-center gap-3">
+          <BookOpen className="h-7 w-7" />
+          My Classes
+        </h2>
+
+        <div className="flex flex-wrap gap-3">
+          {classes.length > 0 ? (
+            classes.map((klass) => (
+              <div
+                key={klass.id}
+                className="glass border-white/10 rounded-full px-5 py-3 flex flex-wrap items-center gap-3 text-sm"
+              >
+                <span className="font-semibold text-accent">{klass.name}</span>
+                <span className="text-muted-foreground capitalize">Role: {klass.role}</span>
+                <Button
+                  asChild
+                  size="sm"
+                  variant="secondary"
+                  className="rounded-full bg-white/10 text-accent hover:bg-white/20"
+                >
+                  <Link href={`/student/practice?classId=${klass.id}`}>Go to class</Link>
+                </Button>
+              </div>
+            ))
+          ) : (
+            <div className="glass border-dashed border-white/10 rounded-full px-5 py-3 text-sm text-muted-foreground">
+              No classes yet — ask your instructor for an invite link.
+            </div>
+          )}
+        </div>
+
+        <Card className="glass-strong border-white/10">
+          <CardHeader>
+            <CardTitle>Join a class</CardTitle>
+            <CardDescription>Enter an invite code from your instructor to access class practice.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleJoinClass} className="flex flex-col gap-3 sm:flex-row">
+              <Input
+                value={joinCode}
+                onChange={(event) => setJoinCode(event.target.value)}
+                placeholder="Enter invite code"
+              />
+              <Button type="submit" disabled={joining}>
+                {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : "Join class"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

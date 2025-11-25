@@ -90,10 +90,22 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    border-color: hsl(var(--border));
+    outline-color: transparent;
+  }
+
+  *:focus-visible {
+    @apply outline outline-2 outline-offset-2 outline-ring/50;
   }
   body {
     @apply bg-background text-foreground;
+    background-color: #020713;
+    background-image:
+      radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+      radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+    background-size: 28px 28px;
+    background-position: 0 0, 14px 14px;
+    min-height: 100vh;
   }
 
   /* Liquid glass effect utilities */

@@ -1,7 +1,8 @@
 export interface User {
   id: string
   email: string
-  role: "STUDENT" | "INSTRUCTOR"
+  username: string
+  role: "student" | "instructor"
   createdAt: Date
 }
 
@@ -17,8 +18,20 @@ export interface Question {
   prompt: string
   starter: string | null
   answer: string | null
-  difficulty: number
+  difficulty: "easy" | "medium" | "hard"
   skillId: string
+  classId: string
+  createdById: string
+  createdAt: Date
+}
+
+export interface TestCase {
+  id: string
+  questionId: string
+  input: string
+  expectedOutput: string
+  timeoutMs: number
+  hidden: boolean
   createdAt: Date
 }
 
@@ -28,6 +41,7 @@ export interface Attempt {
   questionId: string
   correct: boolean
   elapsedMs: number
+  details?: unknown
   createdAt: Date
 }
 
@@ -57,4 +71,19 @@ export interface MasteryWithSkill extends Mastery {
 
 export interface RecommendationWithSkill extends Recommendation {
   skill: Skill
+}
+
+export interface ClassSummary {
+  id: string
+  name: string
+  inviteCode: string
+  createdAt: Date
+}
+
+export interface Enrollment {
+  id: string
+  classId: string
+  userId: string
+  role: "student" | "instructor"
+  createdAt: Date
 }
