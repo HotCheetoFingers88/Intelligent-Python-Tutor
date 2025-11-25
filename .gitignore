@@ -28,4 +28,5 @@ next-env.d.ts
 *.log
 
 # python virtualenv
+/venv
 ml-service/venv/
