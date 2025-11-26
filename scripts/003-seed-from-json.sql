@@ -9,7 +9,8 @@ WITH upsert AS (
     'user_student_seed',
     'student@example.com',
     'student',
-    '$2a$12$XVkq5V3VHYVOUi5gHyRNwOb.1KoE7/zAqCfw2qUgSZ8OSpqxSHw2u',
+    -- bcrypt hash for "password123" (12 rounds)
+    '$2b$12$Y2NCVd733fI7MzAs4aVV/OD4ZY6SqPILAf8I8NjYWDZBZU35T1V8W',
     'student',
     NOW(),
     NOW()
@@ -30,7 +31,8 @@ WITH upsert AS (
     'user_instructor_seed',
     'instructor@example.com',
     'instructor',
-    '$2a$12$XVkq5V3VHYVOUi5gHyRNwOb.1KoE7/zAqCfw2qUgSZ8OSpqxSHw2u',
+    -- bcrypt hash for "password123" (12 rounds)
+    '$2b$12$Y2NCVd733fI7MzAs4aVV/OD4ZY6SqPILAf8I8NjYWDZBZU35T1V8W',
     'instructor',
     NOW(),
     NOW()
@@ -58,8 +60,11 @@ FROM skill_data
 ON CONFLICT ("id") DO UPDATE SET "name" = EXCLUDED."name", "order" = EXCLUDED."order";
 
 INSERT INTO "Class" ("id", "name", "inviteCode", "instructorId") VALUES
-  ('class_global_default', 'Global Practice', 'GLOBALPRACTICE', :'instructor_id')
-ON CONFLICT ("id") DO UPDATE SET "name" = EXCLUDED."name", "instructorId" = EXCLUDED."instructorId";
+  ('class_global_default', 'CIS 3750', 'join3750', :'instructor_id')
+ON CONFLICT ("id") DO UPDATE SET
+  "name" = EXCLUDED."name",
+  "inviteCode" = EXCLUDED."inviteCode",
+  "instructorId" = EXCLUDED."instructorId";
 
 WITH question_data AS (
   SELECT
@@ -99,13 +104,16 @@ ON CONFLICT ("id") DO UPDATE SET
   "classId" = EXCLUDED."classId",
   "createdById" = EXCLUDED."createdById";
 
+-- Remove legacy test cases for Variables questions so the app can re-hydrate simplified tests from content/questions.json
+DELETE FROM "TestCase" WHERE "questionId" IN ('q_var_1', 'q_var_2');
+
 -- Baseline mastery to drive adaptive behaviour in demos
 INSERT INTO "Mastery" ("id", "userId", "skillId", "pKnown", "updatedAt") VALUES
-  ('seed_mastery_variables', :'student_id', 'skill_variables', 0.92, NOW()),
-  ('seed_mastery_conditionals', :'student_id', 'skill_conditionals', 0.20, NOW()),
-  ('seed_mastery_loops', :'student_id', 'skill_loops', 0.25, NOW()),
-  ('seed_mastery_functions', :'student_id', 'skill_functions', 0.80, NOW()),
-  ('seed_mastery_lists', :'student_id', 'skill_lists', 0.70, NOW())
+  ('seed_mastery_variables', :'student_id', 'skill_variables', 0.20, NOW()),
+  ('seed_mastery_conditionals', :'student_id', 'skill_conditionals', 0.60, NOW()),
+  ('seed_mastery_loops', :'student_id', 'skill_loops', 0.55, NOW()),
+  ('seed_mastery_functions', :'student_id', 'skill_functions', 0.70, NOW()),
+  ('seed_mastery_lists', :'student_id', 'skill_lists', 0.65, NOW())
 ON CONFLICT ("userId", "skillId") DO UPDATE SET "pKnown" = EXCLUDED."pKnown", "updatedAt" = NOW();
 
 COMMIT;

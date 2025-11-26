@@ -220,6 +220,7 @@ export async function GET(request: NextRequest) {
     // Fetch questions for the selected skill with attempt context for prioritisation
     const selectedSkillScore = skillScores.find((s) => s.skillId === targetSkillId)
     let targetDifficulty = 2
+    const attemptsForSkill = accuracyMap.get(targetSkillId)?.total ?? 0
     if (selectedSkillScore) {
       if (selectedSkillScore.mastery < 0.45) {
         targetDifficulty = 1
@@ -234,6 +235,11 @@ export async function GET(request: NextRequest) {
       } else if (selectedSkillScore.consecutiveCorrect >= 3) {
         targetDifficulty = Math.min(3, targetDifficulty + 1)
       }
+    }
+
+    // Demo-friendly override: force the third question served for this skill to be medium
+    if (attemptsForSkill === 2) {
+      targetDifficulty = 2
     }
 
     const adaptiveDifficultyEnabled = useMl

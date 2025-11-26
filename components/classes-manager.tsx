@@ -311,13 +311,19 @@ export function ClassesManager() {
             return (
               <Card key={klass.id} className="glass border-white/10">
                 <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-3">
-                      {klass.name}
-                      <Badge variant="outline">{klass.enrollmentCount} members</Badge>
-                      <Badge variant="outline">{klass.questionCount} questions</Badge>
-                    </CardTitle>
-                    <CardDescription>Invite code: {klass.inviteCode}</CardDescription>
+                  <div className="space-y-2">
+                    <CardTitle className="text-xl font-semibold text-foreground">{klass.name}</CardTitle>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline" className="font-medium">
+                        {klass.enrollmentCount} members
+                      </Badge>
+                      <Badge variant="outline" className="font-medium">
+                        {klass.questionCount} questions
+                      </Badge>
+                    </div>
+                    <CardDescription className="text-sm">
+                      Invite code: <code className="font-mono text-primary">{klass.inviteCode}</code>
+                    </CardDescription>
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" onClick={() => copyInviteLink(klass.inviteCode)}>
@@ -329,7 +335,6 @@ export function ClassesManager() {
                       Create question
                     </Button>
                     <Button variant="ghost" onClick={() => loadQuestions(klass)}>
-                      <Sparkles className="h-4 w-4 mr-2" />
                       View questions
                     </Button>
                   </div>

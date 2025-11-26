@@ -23,6 +23,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from datetime import datetime
+import joblib
 
 # ML Libraries
 from sklearn.linear_model import LogisticRegression
@@ -41,6 +42,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+MODELS_DIR = Path(__file__).resolve().parent / "models"
+MODELS_DIR.mkdir(exist_ok=True)
 
 # KNOWLEDGE TRACING UTILITIES (Custom BKT Implementation)
 
@@ -67,6 +71,8 @@ SYNTHETIC_SKILL_PRIORS = {
     "skill_functions": BKTParameters(0.5, 0.12, 0.08, 0.16),
     "skill_lists": BKTParameters(0.55, 0.1, 0.07, 0.17),
 }
+
+BKT_PARAMS_PATH = MODELS_DIR / "bkt_params.json"
 
 
 def clamp_probability(value: float, min_value: float = 0.01, max_value: float = 0.99) -> float:
@@ -229,7 +235,17 @@ def train_bkt_models() -> dict[str, BKTParameters]:
     return trained
 
 
-TRAINED_BKT_MODELS = train_bkt_models()
+def load_bkt_models() -> dict[str, BKTParameters]:
+    if BKT_PARAMS_PATH.exists():
+        try:
+            data = json.loads(BKT_PARAMS_PATH.read_text())
+            return {skill: BKTParameters(**params) for skill, params in data.items()}
+        except Exception:
+            pass
+    return train_bkt_models()
+
+
+TRAINED_BKT_MODELS = load_bkt_models()
 
 
 def run_trained_bkt(skill_id: str, attempts: List["AttemptData"]) -> Optional[float]:
@@ -465,9 +481,26 @@ def _extract_feedback_features(request: FeedbackRequest) -> np.ndarray:
     )
 
 
-feedback_X, feedback_y = _generate_feedback_training_data()
-feedback_model = RandomForestClassifier(n_estimators=200, random_state=42, max_depth=6)
-feedback_model.fit(feedback_X, feedback_y)
+FEEDBACK_MODEL_PATH = MODELS_DIR / "feedback_model.joblib"
+
+
+def _train_feedback_model_synthetic() -> RandomForestClassifier:
+    feedback_X, feedback_y = _generate_feedback_training_data()
+    model = RandomForestClassifier(n_estimators=200, random_state=42, max_depth=6)
+    model.fit(feedback_X, feedback_y)
+    return model
+
+
+def _load_feedback_model() -> RandomForestClassifier:
+    if FEEDBACK_MODEL_PATH.exists():
+        try:
+            return joblib.load(FEEDBACK_MODEL_PATH)
+        except Exception:
+            pass
+    return _train_feedback_model_synthetic()
+
+
+feedback_model = _load_feedback_model()
 
 
 def _fallback_feedback(request: FeedbackRequest) -> FeedbackResponse:
@@ -609,9 +642,26 @@ def _difficulty_features(sample: DifficultySample) -> np.ndarray:
     )
 
 
-difficulty_X, difficulty_y = _generate_difficulty_training_data()
-difficulty_model = GradientBoostingClassifier(random_state=42)
-difficulty_model.fit(difficulty_X, difficulty_y)
+DIFFICULTY_MODEL_PATH = MODELS_DIR / "difficulty_model.joblib"
+
+
+def _train_difficulty_model_synthetic() -> GradientBoostingClassifier:
+    difficulty_X, difficulty_y = _generate_difficulty_training_data()
+    model = GradientBoostingClassifier(random_state=42)
+    model.fit(difficulty_X, difficulty_y)
+    return model
+
+
+def _load_difficulty_model() -> GradientBoostingClassifier:
+    if DIFFICULTY_MODEL_PATH.exists():
+        try:
+            return joblib.load(DIFFICULTY_MODEL_PATH)
+        except Exception:
+            pass
+    return _train_difficulty_model_synthetic()
+
+
+difficulty_model = _load_difficulty_model()
 
 
 @app.post("/difficulty", response_model=DifficultyResponse)
@@ -660,15 +710,7 @@ class RecommendResponse(BaseModel):
     rationale: str
 
 
-skill_ids = [
-    "skill_variables",
-    "skill_conditionals",
-    "skill_loops",
-    "skill_functions",
-    "skill_lists",
-]
-
-skill_labels = {
+DEFAULT_SKILL_LABELS = {
     "skill_variables": "Variables",
     "skill_conditionals": "Conditionals",
     "skill_loops": "Loops",
@@ -676,6 +718,21 @@ skill_labels = {
     "skill_lists": "Lists",
 }
 
+
+def _build_skill_labels(ids: List[str]):
+    labels = DEFAULT_SKILL_LABELS.copy()
+    for skill in ids:
+        labels.setdefault(skill, skill.replace("_", " ").title())
+    return labels
+
+
+skill_ids = [
+    "skill_variables",
+    "skill_conditionals",
+    "skill_loops",
+    "skill_functions",
+    "skill_lists",
+]
 
 def _generate_mastery_cohort(ids: List[str]):
     rng = np.random.default_rng(2025)
@@ -698,14 +755,6 @@ def _generate_mastery_cohort(ids: List[str]):
     return df, labels
 
 
-synthetic_users, synthetic_segments = _generate_mastery_cohort(skill_ids)
-neighbor_model = NearestNeighbors(metric="cosine", n_neighbors=6)
-neighbor_model.fit(synthetic_users)
-kmeans_model = MiniBatchKMeans(n_clusters=4, random_state=42, batch_size=32)
-kmeans_model.fit(synthetic_users)
-cluster_labels = kmeans_model.labels_
-
-
 def _cluster_descriptions(cluster_ids: np.ndarray, segments: List[str]):
     descriptions: dict[int, str] = {}
     pretty = {
@@ -724,7 +773,42 @@ def _cluster_descriptions(cluster_ids: np.ndarray, segments: List[str]):
     return descriptions
 
 
-cluster_descriptions = _cluster_descriptions(cluster_labels, synthetic_segments)
+RECOMMENDER_MODEL_PATH = MODELS_DIR / "recommendation.joblib"
+
+
+def _train_recommender_synthetic():
+    users, segments = _generate_mastery_cohort(skill_ids)
+    neighbor = NearestNeighbors(metric="cosine", n_neighbors=6)
+    neighbor.fit(users)
+    kmeans = MiniBatchKMeans(n_clusters=4, random_state=42, batch_size=32)
+    kmeans.fit(users)
+    labels = kmeans.labels_
+    descriptions = _cluster_descriptions(labels, segments)
+    return skill_ids, users, neighbor, kmeans, labels, descriptions
+
+
+def _load_recommender_models():
+    skill_list, users, neighbor, kmeans, labels, descriptions = _train_recommender_synthetic()
+    if RECOMMENDER_MODEL_PATH.exists():
+        try:
+            artifacts = joblib.load(RECOMMENDER_MODEL_PATH)
+            users = artifacts.get("user_vectors", users)
+            skill_list = artifacts.get("skill_ids", skill_list)
+            neighbor = artifacts.get("neighbor_model", neighbor)
+            kmeans = artifacts.get("kmeans_model", kmeans)
+            labels = artifacts.get("cluster_labels", getattr(kmeans, "labels_", labels))
+            descriptions = artifacts.get("cluster_descriptions", descriptions)
+        except Exception:
+            pass
+    users_df = users if isinstance(users, pd.DataFrame) else pd.DataFrame(users, columns=skill_list)
+    labels_array = np.array(labels)
+    if descriptions is None:
+        descriptions = _cluster_descriptions(labels_array, ["balanced_practice"] * len(labels_array))
+    return skill_list, users_df, neighbor, kmeans, labels_array, descriptions
+
+
+skill_ids, synthetic_users, neighbor_model, kmeans_model, cluster_labels, cluster_descriptions = _load_recommender_models()
+skill_labels = _build_skill_labels(skill_ids)
 
 @app.post("/recommend", response_model=RecommendResponse)
 async def recommend_skill(request: RecommendRequest):
@@ -907,9 +991,26 @@ def _generate_adaptive_training_data(n_samples: int = 1400):
     return np.array(features), np.array(labels)
 
 
-adaptive_X, adaptive_y = _generate_adaptive_training_data()
-adaptive_model = GradientBoostingClassifier(random_state=42)
-adaptive_model.fit(adaptive_X, adaptive_y)
+ADAPTIVE_MODEL_PATH = MODELS_DIR / "adaptive_model.joblib"
+
+
+def _train_adaptive_model_synthetic() -> GradientBoostingClassifier:
+    adaptive_X, adaptive_y = _generate_adaptive_training_data()
+    model = GradientBoostingClassifier(random_state=42)
+    model.fit(adaptive_X, adaptive_y)
+    return model
+
+
+def _load_adaptive_model() -> GradientBoostingClassifier:
+    if ADAPTIVE_MODEL_PATH.exists():
+        try:
+            return joblib.load(ADAPTIVE_MODEL_PATH)
+        except Exception:
+            pass
+    return _train_adaptive_model_synthetic()
+
+
+adaptive_model = _load_adaptive_model()
 
 
 def _adaptive_features(sample: AdaptiveDifficultySample) -> np.ndarray:

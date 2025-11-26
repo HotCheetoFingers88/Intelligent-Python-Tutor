@@ -157,6 +157,8 @@ function buildPedagogicalFeedback({
   mastery,
   consecutiveIncorrect,
   attemptCount,
+  elapsedMs,
+  overrideHintLevel,
   mlFeedback,
 }: {
   correct: boolean
@@ -164,6 +166,8 @@ function buildPedagogicalFeedback({
   mastery: number
   consecutiveIncorrect: number
   attemptCount: number
+  elapsedMs?: number
+  overrideHintLevel?: HintRecommendation
   mlFeedback: MlFeedback
 }): {
   message: string
@@ -181,7 +185,11 @@ function buildPedagogicalFeedback({
       : "needs_scaffold"
   const state = (mlFeedback.state as MlFeedback["state"]) ?? (fallbackState as MlFeedback["state"])
   const hintLevel: HintRecommendation =
-    correct ? "simple" : mlFeedback.hintLevel ?? (state === "needs_review" ? "worked_example" : "scaffold")
+    correct
+      ? "simple"
+      : overrideHintLevel ??
+        mlFeedback.hintLevel ??
+        (state === "needs_review" ? "worked_example" : "scaffold")
 
   const nextAction: "advance" | "retry" | "focus_skill" =
     state === "needs_review" ? "focus_skill" : correct ? "advance" : "retry"
@@ -442,6 +450,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
+    const RESET_TEST_IDS = ["q_var_1", "q_var_2"]
+
     let question = await prisma.question.findUnique({
       where: { id: questionId },
       include: {
@@ -453,6 +463,12 @@ export async function POST(request: NextRequest) {
 
     if (!question) {
       return NextResponse.json({ error: "Question not found" }, { status: 404 })
+    }
+
+    // Force refresh of legacy test cases for specific demo questions (clears stale isinstance/type checks)
+    if (RESET_TEST_IDS.includes(questionId)) {
+      await prisma.testCase.deleteMany({ where: { questionId } })
+      question = { ...question, testCases: [] }
     }
 
     if (!question.testCases || question.testCases.length === 0) {
@@ -623,6 +639,7 @@ export async function POST(request: NextRequest) {
 
     const masteryDelta = pKnown - baselineMastery
     let mlFeedback: MlFeedback = {}
+    let stagedHintLevel: HintRecommendation | undefined = undefined
 
     try {
       const feedbackPayload: Record<string, unknown> = {
@@ -651,6 +668,17 @@ export async function POST(request: NextRequest) {
       console.warn("[v0] Feedback ML fallback:", (error as Error)?.message ?? error)
     }
 
+    // Demo-friendly override: first wrong -> simple hint, second wrong after 10s -> worked example, else scaffold.
+    if (!correct) {
+      if (consecutiveIncorrect === 0) {
+        stagedHintLevel = "simple"
+      } else if (consecutiveIncorrect >= 1 && (elapsedMs ?? 0) >= 10000) {
+        stagedHintLevel = "worked_example"
+      } else {
+        stagedHintLevel = "scaffold"
+      }
+    }
+
     const pedagogicalFeedback = buildPedagogicalFeedback({
       correct,
       question: {
@@ -661,13 +689,16 @@ export async function POST(request: NextRequest) {
       mastery: pKnown,
       consecutiveIncorrect,
       attemptCount: attemptCountForSkill,
+      elapsedMs,
+      overrideHintLevel: stagedHintLevel,
       mlFeedback,
     })
 
     // Gate which hint tiers the UI can access based on ML recommendation (logistic-style policy).
     let allowedHintTiers: UiHintTier[] | undefined = undefined
     if (!correct) {
-      const hintLevel = (mlFeedback.hintLevel as HintRecommendation | undefined) ?? "simple"
+      const hintLevel =
+        stagedHintLevel ?? (mlFeedback.hintLevel as HintRecommendation | undefined) ?? "simple"
       if (hintLevel === "worked_example") {
         allowedHintTiers = ["simple", "medium", "worked_example"]
       } else if (hintLevel === "scaffold") {

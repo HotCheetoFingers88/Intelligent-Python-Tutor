@@ -142,8 +142,8 @@ async function main() {
     update: {},
     create: {
       id: "class_global_default",
-      name: "Global Practice",
-      inviteCode: "global-practice",
+      name: "CIS 3750",
+      inviteCode: "join3750",
       instructorId: systemUser.id,
     },
   })

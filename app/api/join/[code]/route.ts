@@ -11,7 +11,7 @@ export async function GET(_: Request, { params }: RouteContext) {
   const { code } = params
   const user = await getCurrentUser()
 
-  const klass = await prisma.class.findUnique({
+  const klass = await prisma.class.findFirst({
     where: { inviteCode: code },
     select: {
       id: true,

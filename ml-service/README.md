@@ -62,6 +62,21 @@ Each endpoint accepts JSON payloads from the Next.js API layer and returns struc
 
 ---
 
+## Offline Training (replace synthetic models)
+
+Train the service on real telemetry instead of synthetic defaults:
+
+```bash
+python ml-service/train_offline.py \
+  --attempts data/attempts.csv \
+  --questions data/questions.csv \
+  --output-dir ml-service/models
+```
+
+Artifacts (`bkt_params.json`, `feedback_model.joblib`, `difficulty_model.joblib`, `adaptive_model.joblib`, `recommendation.joblib`) are auto-loaded by `main.py` when present; otherwise the synthetic fallback models are used.
+
+---
+
 ## 3. Demo Playbook
 
 Follow these scripts after both servers are running.

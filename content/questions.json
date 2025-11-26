@@ -13,10 +13,6 @@
       },
       {
         "type": "assert",
-        "expression": "isinstance(age, int)"
-      },
-      {
-        "type": "assert",
         "expression": "age == 25"
       }
     ]
@@ -35,11 +31,7 @@
       },
       {
         "type": "assert",
-        "expression": "isinstance(student_name, str)"
-      },
-      {
-        "type": "assert",
-        "expression": "len(student_name.strip()) > 0"
+        "expression": "len(str(student_name).strip()) > 0"
       }
     ]
   },
@@ -83,7 +75,7 @@
     "prompt": "Complete `format_full_name(first: str, last: str)` so it returns the two names combined with a space.",
     "starter": "def format_full_name(first: str, last: str) -> str:\n    \"\"\"Return 'First Last'.\"\"\"\n",
     "answer": "def format_full_name(first: str, last: str) -> str:\n    full_name = f\"{first.strip()} {last.strip()}\"\n    return full_name",
-    "difficulty": 1,
+    "difficulty": 2,
     "tests": [
       {
         "type": "assert",
@@ -105,7 +97,7 @@
     "prompt": "Implement `create_profile(name: str, city: str)` so it returns a dictionary with those values stored under 'name' and 'city'.",
     "starter": "def create_profile(name: str, city: str) -> dict:\n    \"\"\"Return a simple profile dictionary.\"\"\"\n",
     "answer": "def create_profile(name: str, city: str) -> dict:\n    profile = {\"name\": name, \"city\": city}\n    return profile",
-    "difficulty": 1,
+    "difficulty": 2,
     "tests": [
       {
         "type": "assert",
