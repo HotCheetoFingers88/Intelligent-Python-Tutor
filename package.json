@@ -3,12 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "preinstall": "node scripts/check-node.js",
     "build": "next build",
     "dev": "next dev",
     "lint": "eslint . --max-warnings=0",
     "start": "next start",
     "test": "vitest run",
     "test:e2e": "playwright test"
+  },
+  "engines": {
+    "node": ">=20.9.0"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
