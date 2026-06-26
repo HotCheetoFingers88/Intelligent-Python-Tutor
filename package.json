@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "preinstall": "node scripts/check-node.js",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "dev": "next dev",
     "lint": "eslint . --max-warnings=0",
     "start": "next start",
@@ -57,7 +57,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.0.0",
     "postcss": "^8.5",
-    "prisma": "^6.2.0",
+    "prisma": "^7.8.0",
     "tailwindcss": "4.1.16",
     "ts-node": "^10.9.2",
     "typescript": "^5",
