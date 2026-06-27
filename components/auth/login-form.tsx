@@ -27,11 +27,11 @@ export function LoginForm({ redirectTo }: LoginFormProps) {
     },
   })
 
-  
+
  const onSubmit = form.handleSubmit(async () => {
   router.push("/student/dashboard")
 })
-
+/*
   return (
     <div className="space-y-6">
       {serverError && (
@@ -86,5 +86,5 @@ export function LoginForm({ redirectTo }: LoginFormProps) {
         </Link>
       </p>
     </div>
-  )
+  )*/
 }
