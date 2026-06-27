@@ -27,33 +27,9 @@ export function LoginForm({ redirectTo }: LoginFormProps) {
     },
   })
 
-  const onSubmit = form.handleSubmit(async (values) => {
-    setServerError(null)
-    try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      })
-
-      const data = await response.json().catch(() => ({}))
-
-      if (!response.ok) {
-        setServerError(data?.error ?? "Invalid credentials")
-        return
-      }
-
-      const userRole =
-        typeof data?.user?.role === "string" ? data.user.role.toLowerCase() : "student"
-      const destination =
-        redirectTo ?? (userRole === "instructor" ? "/instructor" : "/student/dashboard?welcome=back")
-
-      router.push(destination)
-      router.refresh()
-    } catch (error) {
-      setServerError((error as Error)?.message ?? "Unable to log in.")
-    }
-  })
+ const onSubmit = form.handleSubmit(async () => {
+  router.push("/student/dashboard")
+})
 
   return (
     <div className="space-y-6">
