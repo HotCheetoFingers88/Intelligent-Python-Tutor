@@ -22,8 +22,8 @@ export function LoginForm({ redirectTo }: LoginFormProps) {
   const form = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      emailOrUsername: "",
-      password: "",
+      emailOrUsername: "student@example.com",
+      password: "password123",
     },
   })
 
